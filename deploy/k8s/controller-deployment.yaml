@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudstack-csi-controller
+  namespace: kube-system
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudstack-csi-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudstack-csi-controller
+        app.kubernetes.io/part-of: cloudstack-csi-driver
+    spec:
+      serviceAccountName: cloudstack-csi-controller
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/master: ""
+      tolerations:
+        - effect: NoExecute
+          operator: Exists
+        - effect: NoSchedule
+          operator: Exists
+
+      containers:
+        - name: cloudstack-csi-controller
+          image: cloudstack-csi-driver
+          imagePullPolicy: Always
+          args:
+            - "-endpoint=$(CSI_ENDPOINT)"
+            - "-cloudstackconfig=/etc/cloudstack-csi-driver/cloudstack.ini"
+            - "-debug"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+            - name: cloudstack-conf
+              mountPath: /etc/cloudstack-csi-driver
+
+        - name: external-provisioner
+          image: k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--feature-gates=Topology=true"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+
+        - name: external-attacher
+          image: k8s.gcr.io/sig-storage/csi-attacher:v3.0.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+
+      volumes:
+        - name: socket-dir
+          emptyDir: {}
+        - name: cloudstack-conf
+          secret:
+            secretName: cloudstack-secret

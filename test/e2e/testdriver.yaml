@@ -1,0 +1,10 @@
+StorageClass:
+  FromExistingClassName: cloudstack-csi-driver-e2e
+SnapshotClass:
+  FromName: true
+DriverInfo:
+  Name: csi-cloudstack
+  Capabilities:
+    persistence: true
+    block: true
+    exec: true
