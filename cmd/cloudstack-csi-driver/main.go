@@ -25,7 +25,7 @@ var (
 	debug            = flag.Bool("debug", false, "Enable debug logging")
 	showVersion      = flag.Bool("version", false, "Show version")
 
-	// Version is set by the build proces
+	// Version is set by the build process
 	version  = ""
 	isDevEnv = false
 )

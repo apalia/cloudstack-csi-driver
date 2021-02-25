@@ -23,7 +23,7 @@ var (
 	delete           = flag.Bool("delete", false, "Delete")
 	showVersion      = flag.Bool("version", false, "Show version")
 
-	// Version is set by the build proces
+	// Version is set by the build process
 	version = ""
 )
 
