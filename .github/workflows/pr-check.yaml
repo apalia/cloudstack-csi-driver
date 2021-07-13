@@ -6,7 +6,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - name: golangci-lint
@@ -16,7 +16,7 @@ jobs:
 
   build:
     name: Test & Build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Setup up Go 1.x
         uses: actions/setup-go@v2

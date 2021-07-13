@@ -14,7 +14,7 @@ env:
 jobs:
   push:
     name: Push images
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Check out code
@@ -67,7 +67,7 @@ jobs:
 
   release:
     name: Release
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     # Run only if previous job has succeeded
     needs: [push]
