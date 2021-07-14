@@ -4,10 +4,8 @@ go 1.15
 
 require (
 	github.com/container-storage-interface/spec v1.3.0
-	github.com/golang/protobuf v1.4.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/hashicorp/go-uuid v1.0.2
-	github.com/kubernetes-csi/csi-lib-utils v0.9.1
 	github.com/kubernetes-csi/csi-test/v4 v4.1.0
 	github.com/xanzy/go-cloudstack/v2 v2.9.0
 	go.uber.org/zap v1.16.0

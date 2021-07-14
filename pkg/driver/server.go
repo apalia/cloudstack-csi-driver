@@ -3,18 +3,13 @@ package driver
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strings"
 
-	//nolint:staticcheck // deprecated but still required by gRPC
-	"github.com/golang/protobuf/proto"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
-	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"google.golang.org/grpc"
 )
 
@@ -37,9 +32,6 @@ func (cs *cloudstackDriver) serve(ids csi.IdentityServer, ctrls csi.ControllerSe
 	if err != nil {
 		return fmt.Errorf("Failed to listen: %w", err)
 	}
-
-	// Sanitize payload before logging
-	grpc_zap.JsonPbMarshaller = sanitizer{}
 
 	// Log every request and payloads (request + response)
 	opts := []grpc.ServerOption{
@@ -75,11 +67,4 @@ func parseEndpoint(ep string) (string, string, error) {
 		}
 	}
 	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
-}
-
-type sanitizer struct{}
-
-func (sanitizer) Marshal(out io.Writer, pb proto.Message) error {
-	_, err := io.WriteString(out, protosanitizer.StripSecrets(pb).String())
-	return err
 }
