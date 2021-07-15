@@ -12,10 +12,11 @@ import (
 	"os"
 	"path"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
-	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
+	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
 )
 
 var (

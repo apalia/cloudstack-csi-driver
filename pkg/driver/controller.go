@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
-	"github.com/apalia/cloudstack-csi-driver/pkg/util"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
+	"github.com/apalia/cloudstack-csi-driver/pkg/util"
 )
 
 // onlyVolumeCapAccessMode is the only volume capability access
@@ -177,7 +178,7 @@ func determineSize(req *csi.CreateVolumeRequest) (int64, error) {
 
 		if limit := capRange.GetLimitBytes(); limit > 0 {
 			if util.GigaBytesToBytes(sizeInGB) > limit {
-				return 0, fmt.Errorf("After round-up, volume size %v GB exceeds the limit specified of %v bytes", sizeInGB, limit)
+				return 0, fmt.Errorf("after round-up, volume size %v GB exceeds the limit specified of %v bytes", sizeInGB, limit)
 			}
 		}
 	}

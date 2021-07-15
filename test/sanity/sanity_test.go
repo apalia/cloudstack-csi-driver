@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kubernetes-csi/csi-test/v4/pkg/sanity"
+	"go.uber.org/zap"
+
 	"github.com/apalia/cloudstack-csi-driver/pkg/cloud/fake"
 	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
 	"github.com/apalia/cloudstack-csi-driver/pkg/mount"
-	"github.com/kubernetes-csi/csi-test/v4/pkg/sanity"
-	"go.uber.org/zap"
 )
 
 func TestSanity(t *testing.T) {

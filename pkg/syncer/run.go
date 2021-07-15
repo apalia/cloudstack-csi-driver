@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
 	"github.com/xanzy/go-cloudstack/v2/cloudstack"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
 )
 
 var (
@@ -34,7 +35,7 @@ func (s syncer) Run(ctx context.Context) error {
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return fmt.Errorf("Cannot list existing storage classes: %w", err)
+		return fmt.Errorf("cannot list existing storage classes: %w", err)
 	}
 	for _, sc := range scList.Items {
 		oldSc = append(oldSc, sc.Name)
@@ -47,7 +48,7 @@ func (s syncer) Run(ctx context.Context) error {
 	p := s.csClient.DiskOffering.NewListDiskOfferingsParams()
 	diskOfferings, err := s.csClient.DiskOffering.ListDiskOfferings(p)
 	if err != nil {
-		return fmt.Errorf("Cannot list CloudStack disk offerings: %w", err)
+		return fmt.Errorf("cannot list CloudStack disk offerings: %w", err)
 	}
 
 	// Iterate over CloudStack disk offerings to synchronize them
@@ -65,7 +66,7 @@ func (s syncer) Run(ctx context.Context) error {
 	}
 	log.Println("No more CloudStack disk offerings")
 
-	// If enabled, delete unused labelled storage classes
+	// If enabled, delete unused labeled storage classes
 
 	if s.delete {
 		del := toDelete(oldSc, newSc)
@@ -76,7 +77,7 @@ func (s syncer) Run(ctx context.Context) error {
 				log.Printf("Deleting storage class %s", sc)
 				err = s.k8sClient.StorageV1().StorageClasses().Delete(ctx, sc, metav1.DeleteOptions{})
 				if err != nil {
-					err = fmt.Errorf("Error deleting storage class %s: %w", sc, err)
+					err = fmt.Errorf("error deleting storage class %s: %w", sc, err)
 					log.Println(err.Error())
 					errs = append(errs, err)
 				}
@@ -162,19 +163,19 @@ func checkStorageClass(sc *storagev1.StorageClass, expectedOfferingID string) er
 	errs := make([]error, 0)
 	diskOfferingID, ok := sc.Parameters[driver.DiskOfferingKey]
 	if !ok {
-		errs = append(errs, fmt.Errorf("Missing parameter %s", driver.DiskOfferingKey))
+		errs = append(errs, fmt.Errorf("missing parameter %s", driver.DiskOfferingKey))
 	} else if diskOfferingID != expectedOfferingID {
-		errs = append(errs, fmt.Errorf("Storage class %s has parameter %s=%s, should be %s", sc.Name, driver.DiskOfferingKey, diskOfferingID, expectedOfferingID))
+		errs = append(errs, fmt.Errorf("storage class %s has parameter %s=%s, should be %s", sc.Name, driver.DiskOfferingKey, diskOfferingID, expectedOfferingID))
 	}
 
 	if sc.ReclaimPolicy == nil || *sc.ReclaimPolicy != reclaimPolicy {
-		errs = append(errs, errors.New("Wrong ReclaimPolicy"))
+		errs = append(errs, errors.New("wrong ReclaimPolicy"))
 	}
 	if sc.VolumeBindingMode == nil || *sc.VolumeBindingMode != volBindingMode {
-		errs = append(errs, errors.New("Wrong VolumeBindingMode"))
+		errs = append(errs, errors.New("wrong VolumeBindingMode"))
 	}
 	if sc.AllowVolumeExpansion == nil || *sc.AllowVolumeExpansion != allowVolumeExpansion {
-		errs = append(errs, errors.New("Wrong AllowVolumeExpansion"))
+		errs = append(errs, errors.New("wrong AllowVolumeExpansion"))
 	}
 
 	if len(errs) > 0 {
