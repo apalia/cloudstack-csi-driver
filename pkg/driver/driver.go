@@ -4,9 +4,10 @@
 package driver
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
 	"github.com/apalia/cloudstack-csi-driver/pkg/mount"
-	"go.uber.org/zap"
 )
 
 // Interface is the CloudStack CSI driver interface.

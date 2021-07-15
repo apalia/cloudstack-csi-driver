@@ -16,12 +16,12 @@ type Topology struct {
 func NewTopology(t *csi.Topology) (Topology, error) {
 	segments := t.GetSegments()
 	if segments == nil {
-		return Topology{}, errors.New("Nil segment in topology")
+		return Topology{}, errors.New("nil segment in topology")
 	}
 
 	zoneID, ok := segments[ZoneKey]
 	if !ok {
-		return Topology{}, errors.New("No zone in topology")
+		return Topology{}, errors.New("no zone in topology")
 	}
 	hostID := segments[HostKey]
 	return Topology{zoneID, hostID}, nil

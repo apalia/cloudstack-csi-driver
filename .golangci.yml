@@ -1,0 +1,37 @@
+issues:
+  exclude-use-default: true
+  max-issues-per-linter: 50
+  max-same-issues: 0 # disable
+
+linters-settings:
+
+  staticcheck:
+    go: "1.15"
+    checks: [ "all" ]
+
+  stylecheck:
+    go: "1.15"
+    checks: [ "all" ]
+
+  goimports:
+    local-prefixes: github.com/apalia/cloudstack-csi-driver
+
+  misspell:
+    locale: US
+
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - stylecheck
+    - goimports
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+    - misspell

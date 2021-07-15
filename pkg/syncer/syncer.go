@@ -9,12 +9,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
 	"github.com/xanzy/go-cloudstack/v2/cloudstack"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
 )
 
 // Config holds the syncer tool configuration.
@@ -27,7 +28,7 @@ type Config struct {
 	Delete           bool
 }
 
-// Syncer has a function Run which synchronises CloudStack
+// Syncer has a function Run which synchronizes CloudStack
 // disk offerings to Kubernetes Storage classes.
 type Syncer interface {
 	Run(context.Context) error
@@ -87,11 +88,11 @@ func createLabelsSet(label string) labels.Set {
 func New(config Config) (Syncer, error) {
 	k8sClient, err := createK8sClient(config.KubeConfig, config.Agent)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot create Kubernetes client: %w", err)
+		return nil, fmt.Errorf("cannot create Kubernetes client: %w", err)
 	}
 	csClient, err := createCloudStackClient(config.CloudStackConfig)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot create CloudStack client: %w", err)
+		return nil, fmt.Errorf("cannot create CloudStack client: %w", err)
 	}
 
 	return syncer{

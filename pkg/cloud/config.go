@@ -34,7 +34,7 @@ type csConfig struct {
 func ReadConfig(configFilePath string) (*Config, error) {
 	cfg := &csConfig{}
 	if err := gcfg.ReadFileInto(cfg, configFilePath); err != nil {
-		return nil, fmt.Errorf("Could not parse CloudStack config: %w", err)
+		return nil, fmt.Errorf("could not parse CloudStack config: %w", err)
 	}
 
 	return &Config{

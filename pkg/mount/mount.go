@@ -74,9 +74,9 @@ func (m *mounter) GetDevicePath(ctx context.Context, volumeID string) (string, e
 	})
 
 	if err == wait.ErrWaitTimeout {
-		return "", fmt.Errorf("Failed to find device for the volumeID: %q within the alloted time", volumeID)
+		return "", fmt.Errorf("failed to find device for the volumeID: %q within the alloted time", volumeID)
 	} else if devicePath == "" {
-		return "", fmt.Errorf("Device path was empty for volumeID: %q", volumeID)
+		return "", fmt.Errorf("device path was empty for volumeID: %q", volumeID)
 	}
 	return devicePath, nil
 }

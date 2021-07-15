@@ -24,13 +24,13 @@ func (cs *cloudstackDriver) serve(ids csi.IdentityServer, ctrls csi.ControllerSe
 			addr = "/" + addr
 		}
 		if err := os.Remove(addr); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("Failed to remove %s, error: %s", addr, err.Error())
+			return fmt.Errorf("failed to remove %s, error: %s", addr, err.Error())
 		}
 	}
 
 	listener, err := net.Listen(proto, addr)
 	if err != nil {
-		return fmt.Errorf("Failed to listen: %w", err)
+		return fmt.Errorf("failed to listen: %w", err)
 	}
 
 	// Log every request and payloads (request + response)
@@ -66,5 +66,5 @@ func parseEndpoint(ep string) (string, string, error) {
 			return s[0], s[1], nil
 		}
 	}
-	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
+	return "", "", fmt.Errorf("invalid endpoint: %v", ep)
 }
