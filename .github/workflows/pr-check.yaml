@@ -13,6 +13,7 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: v1.41.1
+          args: --timeout=5m
 
   build:
     name: Test & Build
