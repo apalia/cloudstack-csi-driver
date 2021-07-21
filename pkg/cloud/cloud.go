@@ -16,9 +16,12 @@ type Interface interface {
 
 	ListZonesID(ctx context.Context) ([]string, error)
 
+	GetDomainID(ctx context.Context) (string, error)
+	GetProjectID() string
+
 	GetVolumeByID(ctx context.Context, volumeID string) (*Volume, error)
 	GetVolumeByName(ctx context.Context, name string) (*Volume, error)
-	CreateVolume(ctx context.Context, diskOfferingID, zoneID, name string, sizeInGB int64) (string, error)
+	CreateVolume(ctx context.Context, diskOfferingID, projectID, domainID, zoneID, name string, sizeInGB int64) (string, error)
 	DeleteVolume(ctx context.Context, id string) error
 	AttachVolume(ctx context.Context, volumeID, vmID string) (string, error)
 	DetachVolume(ctx context.Context, volumeID string) error
@@ -54,10 +57,11 @@ var (
 // client is the implementation of Interface.
 type client struct {
 	*cloudstack.CloudStackClient
+	ProjectID string
 }
 
 // New creates a new cloud connector, given its configuration.
 func New(config *Config) Interface {
 	csClient := cloudstack.NewAsyncClient(config.APIURL, config.APIKey, config.SecretKey, config.VerifySSL)
-	return &client{csClient}
+	return &client{csClient, config.ProjectID}
 }

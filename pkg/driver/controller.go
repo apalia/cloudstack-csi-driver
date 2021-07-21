@@ -114,7 +114,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		zoneID = t.ZoneID
 	}
 
-	volID, err := cs.connector.CreateVolume(ctx, diskOfferingID, zoneID, name, sizeInGB)
+	projectID := cs.connector.GetProjectID()
+	domaindID := ""
+
+	if projectID != "" {
+		domaindID, err = cs.connector.GetDomainID(ctx)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	volID, err := cs.connector.CreateVolume(ctx, diskOfferingID, projectID, domaindID, zoneID, name, sizeInGB)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot create volume %s: %v", name, err.Error())
 	}

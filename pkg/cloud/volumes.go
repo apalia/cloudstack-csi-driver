@@ -66,12 +66,14 @@ func (c *client) GetVolumeByName(ctx context.Context, name string) (*Volume, err
 	return &v, nil
 }
 
-func (c *client) CreateVolume(ctx context.Context, diskOfferingID, zoneID, name string, sizeInGB int64) (string, error) {
+func (c *client) CreateVolume(ctx context.Context, diskOfferingID, projectID, domainID, zoneID, name string, sizeInGB int64) (string, error) {
 	p := c.Volume.NewCreateVolumeParams()
 	p.SetDiskofferingid(diskOfferingID)
 	p.SetZoneid(zoneID)
 	p.SetName(name)
 	p.SetSize(sizeInGB)
+	p.SetDomainid(domainID)
+	p.SetProjectid(projectID)
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "CreateVolume", "params", map[string]string{
 		"diskofferingid": diskOfferingID,
 		"zoneid":         zoneID,
