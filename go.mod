@@ -3,11 +3,11 @@ module github.com/apalia/cloudstack-csi-driver
 go 1.15
 
 require (
+	github.com/apache/cloudstack-go/v2 v2.9.1-0.20210727090705-0ad6453e08b8
 	github.com/container-storage-interface/spec v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/hashicorp/go-uuid v1.0.2
 	github.com/kubernetes-csi/csi-test/v4 v4.1.0
-	github.com/xanzy/go-cloudstack/v2 v2.9.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/text v0.3.5
 	google.golang.org/grpc v1.36.0
