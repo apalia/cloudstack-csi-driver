@@ -26,7 +26,7 @@ func NewFake() Interface {
 	}
 }
 
-func (m *fakeMounter) GetDevicePath(ctx context.Context, volumeID string) (string, error) {
+func (m *fakeMounter) GetDevicePath(ctx context.Context, volumeID string, hypervisor string) (string, error) {
 	return "/dev/sdb", nil
 }
 

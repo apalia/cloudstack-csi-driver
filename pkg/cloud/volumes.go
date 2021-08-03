@@ -32,6 +32,7 @@ func (c *client) GetVolumeByID(ctx context.Context, volumeID string) (*Volume, e
 		DiskOfferingID:   vol.Diskofferingid,
 		ZoneID:           vol.Zoneid,
 		VirtualMachineID: vol.Virtualmachineid,
+		Hypervisor:       vol.Hypervisor,
 		DeviceID:         strconv.FormatInt(vol.Deviceid, 10),
 	}
 	return &v, nil
@@ -62,7 +63,9 @@ func (c *client) GetVolumeByName(ctx context.Context, name string) (*Volume, err
 		ZoneID:           vol.Zoneid,
 		VirtualMachineID: vol.Virtualmachineid,
 		DeviceID:         strconv.FormatInt(vol.Deviceid, 10),
+		Hypervisor:       vol.Hypervisor,
 	}
+
 	return &v, nil
 }
 

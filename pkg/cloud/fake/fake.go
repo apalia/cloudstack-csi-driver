@@ -72,7 +72,7 @@ func (f *fakeConnector) GetVolumeByName(ctx context.Context, name string) (*clou
 	return nil, cloud.ErrNotFound
 }
 
-func (f *fakeConnector) CreateVolume(ctx context.Context, diskOfferingID, zoneID, name string, sizeInGB int64) (string, error) {
+func (f *fakeConnector) CreateVolume(ctx context.Context, diskOfferingID, projectID, domainID, zoneID, name string, sizeInGB int64) (string, error) {
 	id, _ := uuid.GenerateUUID()
 	vol := cloud.Volume{
 		ID:             id,
@@ -100,3 +100,11 @@ func (f *fakeConnector) AttachVolume(ctx context.Context, volumeID, vmID string)
 }
 
 func (f *fakeConnector) DetachVolume(ctx context.Context, volumeID string) error { return nil }
+
+func (f *fakeConnector) GetDomainID(ctx context.Context) (string, error) {
+	return "domain", nil
+}
+
+func (f *fakeConnector) GetProjectID() string {
+	return "test"
+}

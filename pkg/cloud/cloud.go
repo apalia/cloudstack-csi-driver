@@ -40,6 +40,7 @@ type Volume struct {
 
 	VirtualMachineID string
 	DeviceID         string
+	Hypervisor       string
 }
 
 // VM represents a CloudStack Virtual Machine.

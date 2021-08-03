@@ -60,11 +60,14 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
 	}
 
+	ctxzap.Extract(ctx).Sugar().Infow("#### Mount 1  target: " + target)
 	// Now, find the device path
+
+	v, _ := ns.connector.GetVolumeByID(ctx, volumeID)
 
 	deviceID := req.PublishContext[deviceIDContextKey]
 
-	devicePath, err := ns.mounter.GetDevicePath(ctx, volumeID)
+	devicePath, err := ns.mounter.GetDevicePath(ctx, v.DeviceID, v.Hypervisor)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot find device path for volume %s: %s", volumeID, err.Error())
 	}
@@ -113,6 +116,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
+	ctxzap.Extract(ctx).Sugar().Debugf("Staged volume device %s on %s on target %s successfully", volumeID, devicePath, target)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
@@ -166,6 +170,8 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Errorf(codes.Internal, "Could not unmount target %q: %v", target, err)
 	}
 
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnstageVolume: unmounted %d on target %d", dev, target)
+
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
@@ -190,6 +196,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if req.GetStagingTargetPath() == "" {
 		return nil, status.Error(codes.InvalidArgument, "Staging target path missing in request")
+	}
+	v, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err != nil {
+
 	}
 
 	readOnly := req.GetReadonly()
@@ -236,12 +246,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := ns.mounter.Mount(source, targetPath, fsType, options); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to mount %s at %s: %s", source, targetPath, err.Error())
 		}
+		ctxzap.Extract(ctx).Sugar().Debugf("mount volume %s from source %s on target %s ", volumeID, source, targetPath)
 	}
 
 	if req.GetVolumeCapability().GetBlock() != nil {
 		volumeID := req.GetVolumeId()
 
-		devicePath, err := ns.mounter.GetDevicePath(ctx, volumeID)
+		devicePath, err := ns.mounter.GetDevicePath(ctx, v.DeviceID, v.Hypervisor)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Cannot find device path for volume %s: %s", volumeID, err.Error())
 		}
@@ -268,12 +279,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := ns.mounter.Mount(devicePath, targetPath, "", options); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to mount %s at %s: %s", devicePath, targetPath, err.Error())
 		}
+		ctxzap.Extract(ctx).Sugar().Infow("### mount volume on devicePath: " + devicePath + " and targetPath: " + targetPath)
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+
 	if req.GetVolumeId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
@@ -290,6 +303,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
 	}
 
+	ctxzap.Extract(ctx).Sugar().Debugw("node unpublish (call unmount) volume", "id", volumeID, "targetPath", targetPath)
 	err := ns.mounter.Unmount(targetPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Unmount of targetpath %s failed with error %v", targetPath, err)
@@ -298,6 +312,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil && !os.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Deleting %s failed with error %v", targetPath, err)
 	}
+	ctxzap.Extract(ctx).Sugar().Debugw("sucessfully unpublish volume", "id", volumeID, "targetPath", targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

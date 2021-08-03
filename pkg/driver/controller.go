@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"math/rand"
 
 	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
@@ -33,7 +34,6 @@ func NewControllerServer(connector cloud.Interface) csi.ControllerServer {
 }
 
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-
 	// Check arguments
 
 	if req.GetName() == "" {
@@ -269,6 +269,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Errorf(codes.Internal, "Cannot attach volume %s: %s", volumeID, err.Error())
 	}
 
+	ctxzap.Extract(ctx).Sugar().Debugf("volume %s attached successfully on node %s", volumeID, nodeID)
+
 	publishContext := map[string]string{
 		deviceIDContextKey: deviceID,
 	}
@@ -318,6 +320,8 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot detach volume %s: %s", volumeID, err.Error())
 	}
+
+	ctxzap.Extract(ctx).Sugar().Debugf("volume %s detached successfully on node %s", volumeID, nodeID)
 
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }

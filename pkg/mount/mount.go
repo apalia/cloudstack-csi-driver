@@ -5,20 +5,19 @@ package mount
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/mount-utils"
 	"k8s.io/utils/exec"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const (
-	diskIDPath = "/dev/disk/by-id"
+	diskIDPath = "/dev/disk/by-path"
 )
 
 // Interface defines the set of methods to allow for
@@ -29,7 +28,7 @@ type Interface interface {
 
 	FormatAndMount(source string, target string, fstype string, options []string) error
 
-	GetDevicePath(ctx context.Context, volumeID string) (string, error)
+	GetDevicePath(ctx context.Context, volumeID string, hypervisor string) (string, error)
 	GetDeviceName(mountPath string) (string, int, error)
 	ExistsPath(filename string) (bool, error)
 	MakeDir(pathname string) error
@@ -52,7 +51,23 @@ func New() Interface {
 	}
 }
 
-func (m *mounter) GetDevicePath(ctx context.Context, volumeID string) (string, error) {
+func (m *mounter) GetDevicePath(ctx context.Context, deviceID string, hypervisor string) (string, error) {
+
+	ctxzap.Extract(ctx).Sugar().Debugf("device id: '%s' (Hypervisor: %s)", deviceID, hypervisor)
+
+	if strings.ToLower(hypervisor) == "vmware" {
+		ctxzap.Extract(ctx).Sugar().Warnf("volume hypervisor is VMWare, try to correct SCSI ID")
+		idInt, _ := strconv.Atoi(deviceID)
+		if idInt > 3 {
+			idInt--
+			deviceID = fmt.Sprintf("%d", idInt)
+			ctxzap.Extract(ctx).Sugar().Warnf("new device id: %s", deviceID)
+		}
+	}
+
+	deviceID = fmt.Sprintf("pci-0000:00:10.0-scsi-0:0:%s:0", deviceID)
+	ctxzap.Extract(ctx).Sugar().Debugf("device path: %s/%s", diskIDPath, deviceID)
+
 	backoff := wait.Backoff{
 		Duration: 1 * time.Second,
 		Factor:   1.1,
@@ -61,12 +76,13 @@ func (m *mounter) GetDevicePath(ctx context.Context, volumeID string) (string, e
 
 	var devicePath string
 	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (bool, error) {
-		path, err := m.getDevicePathBySerialID(volumeID)
+		path, err := m.getDevicePathBySerialID(deviceID)
 		if err != nil {
 			return false, err
 		}
 		if path != "" {
 			devicePath = path
+			ctxzap.Extract(ctx).Sugar().Debugf("device path found: %s", path)
 			return true, nil
 		}
 		m.probeVolume(ctx)
@@ -74,25 +90,21 @@ func (m *mounter) GetDevicePath(ctx context.Context, volumeID string) (string, e
 	})
 
 	if err == wait.ErrWaitTimeout {
-		return "", fmt.Errorf("Failed to find device for the volumeID: %q within the alloted time", volumeID)
+		return "", fmt.Errorf("Failed to find device for the deviceID: %q within the alloted time", deviceID)
 	} else if devicePath == "" {
-		return "", fmt.Errorf("Device path was empty for volumeID: %q", volumeID)
+		return "", fmt.Errorf("Device path was empty for deviceID: %q", deviceID)
 	}
 	return devicePath, nil
 }
 
 func (m *mounter) getDevicePathBySerialID(volumeID string) (string, error) {
-	sourcePathPrefixes := []string{"virtio-", "scsi-", "scsi-0QEMU_QEMU_HARDDISK_"}
-	serial := diskUUIDToSerial(volumeID)
-	for _, prefix := range sourcePathPrefixes {
-		source := filepath.Join(diskIDPath, prefix+serial)
-		_, err := os.Stat(source)
-		if err == nil {
-			return source, nil
-		}
-		if !os.IsNotExist(err) {
-			return "", err
-		}
+	source := filepath.Join(diskIDPath, volumeID)
+	_, err := os.Stat(source)
+	if err == nil {
+		return source, nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
 	}
 	return "", nil
 }
@@ -101,24 +113,11 @@ func (m *mounter) probeVolume(ctx context.Context) {
 	log := ctxzap.Extract(ctx).Sugar()
 	log.Debug("Scaning SCSI host...")
 
-	scsiPath := "/sys/class/scsi_host/"
-	if dirs, err := ioutil.ReadDir(scsiPath); err == nil {
-		for _, f := range dirs {
-			name := scsiPath + f.Name() + "/scan"
-			data := []byte("- - -")
-			if err = ioutil.WriteFile(name, data, 0666); err != nil {
-				log.Warnf("Failed to rescan scsi host %s", name)
-			}
-		}
-	} else {
-		log.Warnf("Failed to read %s, err %v", scsiPath, err)
-	}
-
-	args := []string{"trigger"}
-	cmd := m.Exec.Command("udevadm", args...)
+	args := []string{"-a"}
+	cmd := m.Exec.Command("rescan-scsi-bus.sh", args...)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Warnf("Error running udevadm trigger %v\n", err)
+		log.Warnf("Error running rescan-scsi-bus.sh -a %v\n", err)
 	}
 }
 
