@@ -10,7 +10,12 @@ func (c *client) GetDomainID(ctx context.Context) (string, error) {
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "GetProjectByID", "params", map[string]string{
 		"projectID": c.ProjectID,
 	})
-	return p.Domainid, err
+
+	if err != nil {
+		return "", err
+	}
+
+	return p.Domainid, nil
 }
 
 func (c *client) GetProjectID() string {

@@ -16,7 +16,8 @@ import (
 
 const (
 	// default file system type to be used when it is not provided
-	defaultFsType = "ext4"
+	defaultFsType                 = "ext4"
+	maxAllowedBlockVolumesPerNode = 10
 )
 
 type nodeServer struct {
@@ -341,6 +342,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	return &csi.NodeGetInfoResponse{
 		NodeId:             vm.ID,
 		AccessibleTopology: topology.ToCSI(),
+		MaxVolumesPerNode:  maxAllowedBlockVolumesPerNode,
 	}, nil
 }
 

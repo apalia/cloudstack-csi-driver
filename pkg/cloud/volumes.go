@@ -75,8 +75,14 @@ func (c *client) CreateVolume(ctx context.Context, diskOfferingID, projectID, do
 	p.SetZoneid(zoneID)
 	p.SetName(name)
 	p.SetSize(sizeInGB)
-	p.SetDomainid(domainID)
-	p.SetProjectid(projectID)
+	if domainID != "" {
+		p.SetDomainid(domainID)
+	}
+
+	if projectID != "" {
+		p.SetProjectid(projectID)
+	}
+
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "CreateVolume", "params", map[string]string{
 		"diskofferingid": diskOfferingID,
 		"zoneid":         zoneID,
@@ -124,4 +130,37 @@ func (c *client) DetachVolume(ctx context.Context, volumeID string) error {
 	})
 	_, err := c.Volume.DetachVolume(p)
 	return err
+}
+
+func (c *client) ListVolumesForVM(ctx context.Context, virtualMachineID string) ([]*Volume, error) {
+	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "ListVolumes", "params", map[string]string{
+		"virtualmachineid": virtualMachineID,
+	})
+	p := c.Volume.NewListVolumesParams()
+	p.SetVirtualmachineid(virtualMachineID)
+	l, err := c.Volume.ListVolumes(p)
+	if err != nil {
+		return nil, err
+	}
+	if l.Count == 0 {
+		return nil, ErrNotFound
+	}
+
+	volumes := make([]*Volume, len(l.Volumes))
+	for i, _ := range l.Volumes {
+		vol := l.Volumes[i]
+		v := &Volume{
+			ID:               vol.Id,
+			Name:             vol.Name,
+			Size:             vol.Size,
+			DiskOfferingID:   vol.Diskofferingid,
+			ZoneID:           vol.Zoneid,
+			VirtualMachineID: vol.Virtualmachineid,
+			Hypervisor:       vol.Hypervisor,
+			DeviceID:         strconv.FormatInt(vol.Deviceid, 10),
+		}
+		volumes[i] = v
+	}
+
+	return volumes, nil
 }

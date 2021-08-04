@@ -115,16 +115,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	projectID := cs.connector.GetProjectID()
-	domaindID := ""
+	domainID := ""
 
 	if projectID != "" {
-		domaindID, err = cs.connector.GetDomainID(ctx)
+		domainID, err = cs.connector.GetDomainID(ctx)
 		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+			ctxzap.Extract(ctx).Sugar().Debugf("could not get a domainID for project %s, create volume without DomainID", projectID)
+			//return nil, status.Errorf(codes.Internal, "Cannot create volume %s in project %s due error in GetDomainID: %v", name, projectID, err.Error())
 		}
 	}
 
-	volID, err := cs.connector.CreateVolume(ctx, diskOfferingID, projectID, domaindID, zoneID, name, sizeInGB)
+	volID, err := cs.connector.CreateVolume(ctx, diskOfferingID, projectID, domainID, zoneID, name, sizeInGB)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot create volume %s: %v", name, err.Error())
 	}
@@ -248,11 +249,21 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.AlreadyExists, "Volume already assigned")
 	}
 
-	if _, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
+	if vm, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "VM %v not found", volumeID)
 	} else if err != nil {
 		// Error with CloudStack
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
+	}
+
+	vols, err := cs.connector.ListVolumesForVM(ctx, nodeID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Error %v", err)
+	}
+
+	//Check max volumes
+	if len(vols) >= maxAllowedBlockVolumesPerNode {
+		return nil, status.Errorf(codes.ResourceExhausted, "Maximum allowed volumes per node reached: %v", err)
 	}
 
 	if vol.VirtualMachineID == nodeID {

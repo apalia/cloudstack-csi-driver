@@ -21,6 +21,7 @@ type Interface interface {
 
 	GetVolumeByID(ctx context.Context, volumeID string) (*Volume, error)
 	GetVolumeByName(ctx context.Context, name string) (*Volume, error)
+	ListVolumesForVM(ctx context.Context, virtualMachineID string) ([]*Volume, error)
 	CreateVolume(ctx context.Context, diskOfferingID, projectID, domainID, zoneID, name string, sizeInGB int64) (string, error)
 	DeleteVolume(ctx context.Context, id string) error
 	AttachVolume(ctx context.Context, volumeID, vmID string) (string, error)
