@@ -132,18 +132,17 @@ func (c *client) DetachVolume(ctx context.Context, volumeID string) error {
 	return err
 }
 
-func (c *client) ListVolumesForVM(ctx context.Context, virtualMachineID string) ([]*Volume, error) {
+func (c *client) ListVolumesForVM(ctx context.Context, virtualMachineID, projectID string) ([]*Volume, error) {
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "ListVolumes", "params", map[string]string{
-		"virtualmachineid": virtualMachineID,
+		"virtualmachineid": virtualMachineID, "projectid": projectID,
 	})
 	p := c.Volume.NewListVolumesParams()
 	p.SetVirtualmachineid(virtualMachineID)
+	p.SetProjectid(projectID)
+
 	l, err := c.Volume.ListVolumes(p)
 	if err != nil {
 		return nil, err
-	}
-	if l.Count == 0 {
-		return nil, ErrNotFound
 	}
 
 	volumes := make([]*Volume, len(l.Volumes))

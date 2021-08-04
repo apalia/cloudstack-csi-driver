@@ -256,14 +256,16 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
 	}
 
-	vols, err := cs.connector.ListVolumesForVM(ctx, nodeID)
+	projectID := cs.connector.GetProjectID()
+
+	vols, err := cs.connector.ListVolumesForVM(ctx, nodeID, projectID)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Error %v", err)
+		return nil, status.Errorf(codes.Internal, "Error no volumes found for nodeID %s: %v", nodeID, err)
 	}
 
 	//Check max volumes
 	if len(vols) >= maxAllowedBlockVolumesPerNode {
-		return nil, status.Errorf(codes.ResourceExhausted, "Maximum allowed volumes per node reached: %v", err)
+		return nil, status.Errorf(codes.ResourceExhausted, "Maximum allowed volumes (%s/%s) per node reached", len(vols), maxAllowedBlockVolumesPerNode)
 	}
 
 	if vol.VirtualMachineID == nodeID {
