@@ -249,7 +249,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.AlreadyExists, "Volume already assigned")
 	}
 
-	if vm, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
+	if _, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "VM %v not found", volumeID)
 	} else if err != nil {
 		// Error with CloudStack
