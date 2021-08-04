@@ -51,3 +51,7 @@ func (*fakeMounter) MakeDir(pathname string) error {
 func (*fakeMounter) MakeFile(pathname string) error {
 	return nil
 }
+
+func (m *fakeMounter) CleanScsi(ctx context.Context) {
+	//Do nothing
+}

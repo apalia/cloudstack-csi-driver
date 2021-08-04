@@ -172,6 +172,8 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 
 	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnstageVolume: unmounted %d on target %d", dev, target)
 
+	ns.mounter.CleanScsi(ctx)
+
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
@@ -199,7 +201,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	v, err := ns.connector.GetVolumeByID(ctx, volumeID)
 	if err != nil {
-
+		return nil, status.Error(codes.InvalidArgument, "No volume found")
 	}
 
 	readOnly := req.GetReadonly()
@@ -313,6 +315,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "Deleting %s failed with error %v", targetPath, err)
 	}
 	ctxzap.Extract(ctx).Sugar().Debugw("sucessfully unpublish volume", "id", volumeID, "targetPath", targetPath)
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

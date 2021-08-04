@@ -11,6 +11,7 @@ import (
 	"k8s.io/utils/exec"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +28,8 @@ type Interface interface {
 	exec.Interface
 
 	FormatAndMount(source string, target string, fstype string, options []string) error
+
+	CleanScsi(ctx context.Context)
 
 	GetDevicePath(ctx context.Context, volumeID string, hypervisor string) (string, error)
 	GetDeviceName(mountPath string) (string, int, error)
@@ -85,7 +88,7 @@ func (m *mounter) GetDevicePath(ctx context.Context, deviceID string, hypervisor
 			ctxzap.Extract(ctx).Sugar().Debugf("device path found: %s", path)
 			return true, nil
 		}
-		m.probeVolume(ctx)
+		m.rescanScsi(ctx)
 		return false, nil
 	})
 
@@ -109,7 +112,7 @@ func (m *mounter) getDevicePathBySerialID(volumeID string) (string, error) {
 	return "", nil
 }
 
-func (m *mounter) probeVolume(ctx context.Context) {
+func (m *mounter) rescanScsi(ctx context.Context) {
 	log := ctxzap.Extract(ctx).Sugar()
 	log.Debug("Scaning SCSI host...")
 
@@ -119,6 +122,24 @@ func (m *mounter) probeVolume(ctx context.Context) {
 	if err != nil {
 		log.Warnf("Error running rescan-scsi-bus.sh -a %v\n", err)
 	}
+}
+
+func (m *mounter) CleanScsi(ctx context.Context) {
+	log := ctxzap.Extract(ctx).Sugar()
+	log.Debug("removing unmounted SCSI devices...")
+
+	args := []string{"-r"}
+	cmd := m.Exec.Command("rescan-scsi-bus.sh", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Warnf("Error running rescan-scsi-bus.sh -r %v\n", err)
+	}
+
+	r, _ := regexp.Compile("(\\d)* device\\(s\\) removed\\.")
+	subs := r.FindAllStringSubmatch(string(out), -1)
+
+	ctxzap.Extract(ctx).Sugar().Debugf("%+v", subs)
+
 }
 
 func (m *mounter) GetDeviceName(mountPath string) (string, int, error) {
