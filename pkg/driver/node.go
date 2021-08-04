@@ -314,7 +314,9 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil && !os.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Deleting %s failed with error %v", targetPath, err)
 	}
-	ctxzap.Extract(ctx).Sugar().Debugw("sucessfully unpublish volume", "id", volumeID, "targetPath", targetPath)
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnpublishVolume: successfully unpublish volume %s on node %s", volumeID, targetPath)
+
+	ns.mounter.CleanScsi(ctx)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
