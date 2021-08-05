@@ -17,7 +17,7 @@ import (
 const (
 	// default file system type to be used when it is not provided
 	defaultFsType                 = "ext4"
-	maxAllowedBlockVolumesPerNode = 10
+	maxAllowedBlockVolumesPerNode = 4
 )
 
 type nodeServer struct {
@@ -61,7 +61,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
 	}
 
-	ctxzap.Extract(ctx).Sugar().Infow("#### Mount 1  target: " + target)
+	ctxzap.Extract(ctx).Sugar().Infof("mount stage volume on target: %s", target)
 	// Now, find the device path
 
 	v, _ := ns.connector.GetVolumeByID(ctx, volumeID)
@@ -171,9 +171,11 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Errorf(codes.Internal, "Could not unmount target %q: %v", target, err)
 	}
 
-	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnstageVolume: unmounted %d on target %d", dev, target)
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnstageVolume: unmounted %s on target %s", dev, target)
 
-	ns.mounter.CleanScsi(ctx)
+	v, _ := ns.connector.GetVolumeByID(ctx, volumeID)
+
+	ns.mounter.CleanScsi(ctx, volumeID, v.Hypervisor)
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -299,7 +301,9 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	targetPath := req.GetTargetPath()
 
 	volumeID := req.GetVolumeId()
-	if _, err := ns.connector.GetVolumeByID(ctx, volumeID); err == cloud.ErrNotFound {
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnpublishVolume: unpublish volume %s on node %s", volumeID, targetPath)
+	v, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err == cloud.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "Volume %v not found", volumeID)
 	} else if err != nil {
 		// Error with CloudStack
@@ -307,7 +311,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	ctxzap.Extract(ctx).Sugar().Debugw("node unpublish (call unmount) volume", "id", volumeID, "targetPath", targetPath)
-	err := ns.mounter.Unmount(targetPath)
+	err = ns.mounter.Unmount(targetPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Unmount of targetpath %s failed with error %v", targetPath, err)
 	}
@@ -317,7 +321,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnpublishVolume: successfully unpublish volume %s on node %s", volumeID, targetPath)
 
-	ns.mounter.CleanScsi(ctx)
+	ns.mounter.CleanScsi(ctx, v.DeviceID, v.Hypervisor)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

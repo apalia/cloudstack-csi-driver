@@ -246,7 +246,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	if vol.VirtualMachineID != "" && vol.VirtualMachineID != nodeID {
-		return nil, status.Error(codes.AlreadyExists, "Volume already assigned")
+		return nil, status.Error(codes.AlreadyExists, "Volume already assigned to another node")
 	}
 
 	if _, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
@@ -263,13 +263,9 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Errorf(codes.Internal, "Error no volumes found for nodeID %s: %v", nodeID, err)
 	}
 
-	//Check max volumes
-	if len(vols) >= maxAllowedBlockVolumesPerNode {
-		return nil, status.Errorf(codes.ResourceExhausted, "Maximum allowed volumes (%s/%s) per node reached", len(vols), maxAllowedBlockVolumesPerNode)
-	}
-
 	if vol.VirtualMachineID == nodeID {
 		// volume already attached
+		ctxzap.Extract(ctx).Sugar().Debugf("volume %s is already attached on node %s", volumeID, nodeID)
 
 		publishContext := map[string]string{
 			deviceIDContextKey: vol.DeviceID,
@@ -277,8 +273,15 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{PublishContext: publishContext}, nil
 	}
 
+	//Check max volumes
+	if len(vols) >= maxAllowedBlockVolumesPerNode {
+		return nil, status.Errorf(codes.ResourceExhausted, "Maximum allowed volumes (%d/%d) per node reached. Could not attach volume %s", len(vols), maxAllowedBlockVolumesPerNode, volumeID)
+	}
+
 	deviceID, err := cs.connector.AttachVolume(ctx, volumeID, nodeID)
 	if err != nil {
+		ctxzap.Extract(ctx).Sugar().Errorf("volume %s failed node %s (may attached on node %s)", volumeID, nodeID, vol.VirtualMachineID)
+
 		return nil, status.Errorf(codes.Internal, "Cannot attach volume %s: %s", volumeID, err.Error())
 	}
 
@@ -303,6 +306,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 	nodeID := req.GetNodeId()
 
+	ctxzap.Extract(ctx).Sugar().Debugf("ControllerUnpublishVolume: try to unpublish volume %s on node %s", volumeID, nodeID)
 	// Check volume
 	if vol, err := cs.connector.GetVolumeByID(ctx, volumeID); err == cloud.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "Volume %v not found", volumeID)
@@ -334,7 +338,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, status.Errorf(codes.Internal, "Cannot detach volume %s: %s", volumeID, err.Error())
 	}
 
-	ctxzap.Extract(ctx).Sugar().Debugf("volume %s detached successfully on node %s", volumeID, nodeID)
+	ctxzap.Extract(ctx).Sugar().Debugf("ControllerUnpublishVolume: volume %s detached successfully on node %s", volumeID, nodeID)
 
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }

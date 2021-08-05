@@ -52,6 +52,6 @@ func (*fakeMounter) MakeFile(pathname string) error {
 	return nil
 }
 
-func (m *fakeMounter) CleanScsi(ctx context.Context) {
+func (m *fakeMounter) CleanScsi(ctx context.Context, deviceID, hypervisor string) {
 	//Do nothing
 }

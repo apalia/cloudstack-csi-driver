@@ -11,7 +11,6 @@ import (
 	"k8s.io/utils/exec"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +28,7 @@ type Interface interface {
 
 	FormatAndMount(source string, target string, fstype string, options []string) error
 
-	CleanScsi(ctx context.Context)
+	CleanScsi(ctx context.Context, deviceID, hypervisor string)
 
 	GetDevicePath(ctx context.Context, volumeID string, hypervisor string) (string, error)
 	GetDeviceName(mountPath string) (string, int, error)
@@ -56,17 +55,7 @@ func New() Interface {
 
 func (m *mounter) GetDevicePath(ctx context.Context, deviceID string, hypervisor string) (string, error) {
 
-	ctxzap.Extract(ctx).Sugar().Debugf("device id: '%s' (Hypervisor: %s)", deviceID, hypervisor)
-
-	if strings.ToLower(hypervisor) == "vmware" {
-		ctxzap.Extract(ctx).Sugar().Warnf("volume hypervisor is VMWare, try to correct SCSI ID")
-		idInt, _ := strconv.Atoi(deviceID)
-		if idInt > 3 {
-			idInt--
-			deviceID = fmt.Sprintf("%d", idInt)
-			ctxzap.Extract(ctx).Sugar().Warnf("new device id: %s", deviceID)
-		}
-	}
+	deviceID = CorrectDeviceId(ctx, deviceID, hypervisor)
 
 	deviceID = fmt.Sprintf("pci-0000:00:10.0-scsi-0:0:%s:0", deviceID)
 	ctxzap.Extract(ctx).Sugar().Debugf("device path: %s/%s", diskIDPath, deviceID)
@@ -100,6 +89,22 @@ func (m *mounter) GetDevicePath(ctx context.Context, deviceID string, hypervisor
 	return devicePath, nil
 }
 
+func CorrectDeviceId(ctx context.Context, deviceID, hypervisor string) string {
+	ctxzap.Extract(ctx).Sugar().Debugf("device id: '%s' (Hypervisor: %s)", deviceID, hypervisor)
+
+	if strings.ToLower(hypervisor) == "vmware" {
+		ctxzap.Extract(ctx).Sugar().Warnf("volume hypervisor is VMWare, try to correct SCSI ID between ID 3-7")
+		idInt, _ := strconv.Atoi(deviceID)
+		if idInt > 3 && idInt <= 7 {
+			idInt--
+			deviceID = fmt.Sprintf("%d", idInt)
+			ctxzap.Extract(ctx).Sugar().Warnf("new device id: %s", deviceID)
+		}
+	}
+
+	return deviceID
+}
+
 func (m *mounter) getDevicePathBySerialID(volumeID string) (string, error) {
 	source := filepath.Join(diskIDPath, volumeID)
 	_, err := os.Stat(source)
@@ -116,30 +121,36 @@ func (m *mounter) rescanScsi(ctx context.Context) {
 	log := ctxzap.Extract(ctx).Sugar()
 	log.Debug("Scaning SCSI host...")
 
-	args := []string{"-a"}
+	args := []string{}
 	cmd := m.Exec.Command("rescan-scsi-bus.sh", args...)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Warnf("Error running rescan-scsi-bus.sh -a %v\n", err)
+		log.Warnf("Error running rescan-scsi-bus.sh: %v\n", err)
 	}
 }
 
-func (m *mounter) CleanScsi(ctx context.Context) {
+func (m *mounter) CleanScsi(ctx context.Context, deviceID, hypervisor string) {
 	log := ctxzap.Extract(ctx).Sugar()
-	log.Debug("removing unmounted SCSI devices...")
 
-	args := []string{"-r"}
-	cmd := m.Exec.Command("rescan-scsi-bus.sh", args...)
+	deviceID = CorrectDeviceId(ctx, deviceID, hypervisor)
+
+	devicePath := fmt.Sprintf("/sys/class/scsi_device/0':'0':'%s':'0/device/delete", deviceID)
+	log.Debugf("removing SCSI devices on %s", devicePath)
+	cmds := "ls " + strings.TrimSuffix(devicePath, "/delete")
+	cmd := m.Exec.Command(cmds)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Warnf("Error running rescan-scsi-bus.sh -r %v\n", err)
+		log.Warnf("Error running echo 1 > %s: %v\n", devicePath, err)
 	}
 
-	r, _ := regexp.Compile("(\\d)* device\\(s\\) removed\\.")
-	subs := r.FindAllStringSubmatch(string(out), -1)
+	cmds = "echo 1 > " + devicePath
+	cmd = m.Exec.Command(cmds)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		log.Warnf("Error running echo 1 > %s: %v\n", devicePath, err)
+	}
 
-	ctxzap.Extract(ctx).Sugar().Debugf("%+v", subs)
-
+	fmt.Println(string(out))
 }
 
 func (m *mounter) GetDeviceName(mountPath string) (string, int, error) {
