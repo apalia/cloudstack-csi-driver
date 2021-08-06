@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"math/rand"
+	"sync"
 
 	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
 	"github.com/apalia/cloudstack-csi-driver/pkg/util"
@@ -24,12 +25,14 @@ var onlyVolumeCapAccessMode = csi.VolumeCapability_AccessMode{
 type controllerServer struct {
 	csi.UnimplementedControllerServer
 	connector cloud.Interface
+	locks     map[string]*sync.Mutex
 }
 
 // NewControllerServer creates a new Controller gRPC server.
 func NewControllerServer(connector cloud.Interface) csi.ControllerServer {
 	return &controllerServer{
 		connector: connector,
+		locks:     make(map[string]*sync.Mutex),
 	}
 }
 
@@ -224,6 +227,15 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.InvalidArgument, "Node ID missing in request")
 	}
 	nodeID := req.GetNodeId()
+
+	//Ensure only one node is processing at same time
+	lock, ok := cs.locks[nodeID]
+	if !ok {
+		lock = &sync.Mutex{}
+		cs.locks[nodeID] = lock
+	}
+	lock.Lock()
+	defer lock.Unlock()
 
 	if req.GetReadonly() {
 		return nil, status.Error(codes.InvalidArgument, "Readonly not possible")

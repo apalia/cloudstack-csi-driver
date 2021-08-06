@@ -89,6 +89,11 @@ func (m *mounter) GetDevicePath(ctx context.Context, deviceID string, hypervisor
 	return devicePath, nil
 }
 
+//Corrects the device id on the node. the scsi id may not match th id which is set from te cloudstack controller
+//1. ClousStack assumes that SCSI ID 3 is always the CD-ROM and is ignoring this id.
+//https://github.com/apache/cloudstack/blob/98d42750cc21dfce5a8dd6d1880e09a621e0152e/server/src/main/java/com/cloud/storage/VolumeApiServiceImpl.java#L3442
+//2. SCSI ID 7 is reserved for the Virtual SCSI Controller
+//https://docs.vmware.com/en/VMware-vSphere/6.0/com.vmware.vsphere.hostclient.doc/GUID-5872D173-A076-42FE-8D0B-9DB0EB0E7362_copy.html
 func CorrectDeviceId(ctx context.Context, deviceID, hypervisor string) string {
 	ctxzap.Extract(ctx).Sugar().Debugf("device id: '%s' (Hypervisor: %s)", deviceID, hypervisor)
 
