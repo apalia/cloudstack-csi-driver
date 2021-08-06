@@ -52,6 +52,12 @@ kubectl create secret generic \
   cloudstack-secret
 ```
 
+Set the correct hypervisor in the DaemonSet Env Vars:
+```
+            - name: NODE_HYPERVISOR
+              value: vmware
+```
+
 If you have also deployed the [CloudStack Kubernetes Provider](https://github.com/apache/cloudstack-kubernetes-provider),
 you may use the same secret for both tools.
 
