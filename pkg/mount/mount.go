@@ -134,18 +134,11 @@ func (m *mounter) CleanScsi(ctx context.Context, deviceID, hypervisor string) {
 
 	deviceID = CorrectDeviceId(ctx, deviceID, hypervisor)
 
-	devicePath := fmt.Sprintf("/sys/class/scsi_device/0':'0':'%s':'0/device/delete", deviceID)
+	devicePath := fmt.Sprintf("/sys/class/scsi_device/0:0:%s:0/device/delete", deviceID)
 	log.Debugf("removing SCSI devices on %s", devicePath)
-	cmds := "ls " + strings.TrimSuffix(devicePath, "/delete")
-	cmd := m.Exec.Command(cmds)
+	args := []string{deviceID}
+	cmd := m.Exec.Command("clean-scsi-bus.sh", args...)
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Warnf("Error running echo 1 > %s: %v\n", devicePath, err)
-	}
-
-	cmds = "echo 1 > " + devicePath
-	cmd = m.Exec.Command(cmds)
-	out, err = cmd.CombinedOutput()
 	if err != nil {
 		log.Warnf("Error running echo 1 > %s: %v\n", devicePath, err)
 	}

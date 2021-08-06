@@ -173,9 +173,12 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 
 	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnstageVolume: unmounted %s on target %s", dev, target)
 
-	v, _ := ns.connector.GetVolumeByID(ctx, volumeID)
+	v, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not find volume %s: %v", volumeID, err)
+	}
 
-	ns.mounter.CleanScsi(ctx, volumeID, v.Hypervisor)
+	ns.mounter.CleanScsi(ctx, v.DeviceID, v.Hypervisor)
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }

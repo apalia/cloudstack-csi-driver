@@ -2,7 +2,7 @@ FROM alpine:3.14.0
 
 LABEL \
     org.opencontainers.image.description="CloudStack CSI driver" \
-    org.opencontainers.image.source="https://github.com/apalia/cloudstack-csi-driver/"
+    org.opencontainers.image.source="https://github.com/swisstxt/cloudstack-csi-driver/"
 
 RUN apk add --no-cache \
     ca-certificates \
@@ -18,4 +18,6 @@ RUN apk add --no-cache \
 COPY ./bin/cloudstack-csi-driver /cloudstack-csi-driver
 COPY rescan-scsi-bus.sh /usr/bin/
 RUN chmod +x /usr/bin/rescan-scsi-bus.sh
+COPY clean-scsi-bus.sh /usr/bin/
+RUN chmod +x /usr/bin/clean-scsi-bus.sh
 ENTRYPOINT ["/cloudstack-csi-driver"]
