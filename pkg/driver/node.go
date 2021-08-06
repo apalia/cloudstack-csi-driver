@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
 	"github.com/apalia/cloudstack-csi-driver/pkg/mount"
@@ -22,20 +23,31 @@ const (
 
 type nodeServer struct {
 	csi.UnimplementedNodeServer
-	connector cloud.Interface
-	mounter   mount.Interface
-	nodeName  string
+	connector  cloud.Interface
+	mounter    mount.Interface
+	nodeName   string
+	hypervisor string
 }
 
 // NewNodeServer creates a new Node gRPC server.
 func NewNodeServer(connector cloud.Interface, mounter mount.Interface, nodeName string) csi.NodeServer {
+	hypervisor, ok := os.LookupEnv("NODE_HYPERVISOR")
+	if !ok {
+		panic("Environment variable NODE_HYPERVISOR must be set")
+	}
+
+	if strings.ToLower(hypervisor) != "vmware" && strings.ToLower(hypervisor) == "kvm" {
+		panic("Environment variable NODE_HYPERVISOR must be 'vmware' or 'kvm'")
+	}
+
 	if mounter == nil {
 		mounter = mount.New()
 	}
 	return &nodeServer{
-		connector: connector,
-		mounter:   mounter,
-		nodeName:  nodeName,
+		connector:  connector,
+		mounter:    mounter,
+		nodeName:   nodeName,
+		hypervisor: hypervisor,
 	}
 }
 
@@ -68,7 +80,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	deviceID := req.PublishContext[deviceIDContextKey]
 
-	devicePath, err := ns.mounter.GetDevicePath(ctx, v.DeviceID, v.Hypervisor)
+	devicePath, err := ns.mounter.GetDevicePath(ctx, v.DeviceID, ns.hypervisor)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot find device path for volume %s: %s", volumeID, err.Error())
 	}
@@ -178,7 +190,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Errorf(codes.Internal, "Could not find volume %s: %v", volumeID, err)
 	}
 
-	ns.mounter.CleanScsi(ctx, v.DeviceID, v.Hypervisor)
+	ns.mounter.CleanScsi(ctx, v.DeviceID, ns.hypervisor)
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -260,7 +272,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if req.GetVolumeCapability().GetBlock() != nil {
 		volumeID := req.GetVolumeId()
 
-		devicePath, err := ns.mounter.GetDevicePath(ctx, v.DeviceID, v.Hypervisor)
+		devicePath, err := ns.mounter.GetDevicePath(ctx, v.DeviceID, ns.hypervisor)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Cannot find device path for volume %s: %s", volumeID, err.Error())
 		}
@@ -324,7 +336,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnpublishVolume: successfully unpublish volume %s on node %s", volumeID, targetPath)
 
-	ns.mounter.CleanScsi(ctx, v.DeviceID, v.Hypervisor)
+	ns.mounter.CleanScsi(ctx, v.DeviceID, ns.hypervisor)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

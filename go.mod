@@ -11,6 +11,7 @@ require (
 	github.com/kubernetes-csi/csi-test/v4 v4.1.0
 	github.com/xanzy/go-cloudstack/v2 v2.9.0
 	go.uber.org/zap v1.16.0
+	golang.org/x/sys v0.0.0-20201207223542-d4d67f95c62d
 	golang.org/x/text v0.3.5
 	google.golang.org/grpc v1.36.0
 	gopkg.in/gcfg.v1 v1.2.3
