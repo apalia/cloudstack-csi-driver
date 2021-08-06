@@ -14,6 +14,14 @@ type fakeMounter struct {
 	utilsexec.Interface
 }
 
+func (m *fakeMounter) GetStatistics(volumePath string) (volumeStatistics, error) {
+	return volumeStatistics{}, nil
+}
+
+func (m *fakeMounter) IsBlockDevice(devicePath string) (bool, error) {
+	return true, nil
+}
+
 // NewFake creates an fake implementation of the
 // mount.Interface, to be used in tests.
 func NewFake() Interface {

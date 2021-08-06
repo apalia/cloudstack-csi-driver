@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/mount-utils"
 	"k8s.io/utils/exec"
@@ -30,6 +31,9 @@ type Interface interface {
 
 	CleanScsi(ctx context.Context, deviceID, hypervisor string)
 
+	GetStatistics(volumePath string) (volumeStatistics, error)
+	IsBlockDevice(devicePath string) (bool, error)
+
 	GetDevicePath(ctx context.Context, volumeID string, hypervisor string) (string, error)
 	GetDeviceName(mountPath string) (string, int, error)
 	ExistsPath(filename string) (bool, error)
@@ -40,6 +44,11 @@ type Interface interface {
 type mounter struct {
 	mount.SafeFormatAndMount
 	exec.Interface
+}
+
+type volumeStatistics struct {
+	AvailableBytes, TotalBytes, UsedBytes    int64
+	AvailableInodes, TotalInodes, UsedInodes int64
 }
 
 // New creates an implementation of the mount.Interface.
@@ -198,4 +207,58 @@ func (*mounter) MakeFile(pathname string) error {
 		return err
 	}
 	return nil
+}
+
+//Copy Pasta from https://github.com/digitalocean/csi-digitalocean/blob/db266f4044178a96c5aa9e2420efae8723af75f4/driver/mounter.go
+func (m *mounter) GetStatistics(volumePath string) (volumeStatistics, error) {
+	isBlock, err := m.IsBlockDevice(volumePath)
+	if err != nil {
+		return volumeStatistics{}, fmt.Errorf("failed to determine if volume %s is block device: %v", volumePath, err)
+	}
+
+	if isBlock {
+		// See http://man7.org/linux/man-pages/man8/blockdev.8.html for details
+		output, err := m.Exec.Command("blockdev", "getsize64", volumePath).CombinedOutput()
+		if err != nil {
+			return volumeStatistics{}, fmt.Errorf("error when getting size of block volume at path %s: output: %s, err: %v", volumePath, string(output), err)
+		}
+		strOut := strings.TrimSpace(string(output))
+		gotSizeBytes, err := strconv.ParseInt(strOut, 10, 64)
+		if err != nil {
+			return volumeStatistics{}, fmt.Errorf("failed to parse size %s into int", strOut)
+		}
+
+		return volumeStatistics{
+			TotalBytes: gotSizeBytes,
+		}, nil
+	}
+
+	var statfs unix.Statfs_t
+	// See http://man7.org/linux/man-pages/man2/statfs.2.html for details.
+	err = unix.Statfs(volumePath, &statfs)
+	if err != nil {
+		return volumeStatistics{}, err
+	}
+
+	volStats := volumeStatistics{
+		AvailableBytes: int64(statfs.Bavail) * int64(statfs.Bsize),
+		TotalBytes:     int64(statfs.Blocks) * int64(statfs.Bsize),
+		UsedBytes:      (int64(statfs.Blocks) - int64(statfs.Bfree)) * int64(statfs.Bsize),
+
+		AvailableInodes: int64(statfs.Ffree),
+		TotalInodes:     int64(statfs.Files),
+		UsedInodes:      int64(statfs.Files) - int64(statfs.Ffree),
+	}
+
+	return volStats, nil
+}
+
+func (m *mounter) IsBlockDevice(devicePath string) (bool, error) {
+	var stat unix.Stat_t
+	err := unix.Stat(devicePath, &stat)
+	if err != nil {
+		return false, err
+	}
+
+	return (stat.Mode & unix.S_IFMT) == unix.S_IFBLK, nil
 }

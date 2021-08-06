@@ -353,6 +353,54 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
+func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	if req.GetVolumeId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
+	}
+	volumeID := req.GetVolumeId()
+
+	volumePath := req.VolumePath
+	if volumePath == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodeGetVolumeStats Volume Path must be provided")
+	}
+
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeGetVolumeStats: for volume %s", volumeID)
+	_, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err == cloud.ErrNotFound {
+		return nil, status.Errorf(codes.NotFound, "Volume %v not found", volumeID)
+	} else if err != nil {
+		// Error with CloudStack
+		return nil, status.Errorf(codes.Internal, "Error %v", err)
+	}
+
+	_, err = ns.mounter.IsBlockDevice(volumePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to determine if %q is block device: %s", volumePath, err)
+	}
+
+	stats, err := ns.mounter.GetStatistics(volumePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to retrieve capacity statistics for volume path %q: %s", volumePath, err)
+	}
+
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			&csi.VolumeUsage{
+				Available: stats.AvailableBytes,
+				Total:     stats.TotalBytes,
+				Used:      stats.UsedBytes,
+				Unit:      csi.VolumeUsage_BYTES,
+			},
+			&csi.VolumeUsage{
+				Available: stats.AvailableInodes,
+				Total:     stats.TotalInodes,
+				Used:      stats.UsedInodes,
+				Unit:      csi.VolumeUsage_INODES,
+			},
+		},
+	}, nil
+}
+
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
@@ -362,6 +410,11 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 						Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
 					},
 				},
+			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS}},
 			},
 		},
 	}, nil
