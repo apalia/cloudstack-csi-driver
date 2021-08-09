@@ -95,10 +95,18 @@ disk offerings to Kubernetes storage classes.
 
 Example:
 
-```
+```bash
 kubectl apply -f ./examples/k8s/pvc.yaml
 kubectl apply -f ./examples/k8s/pod.yaml
 ```
+
+#### Reusing volumes
+
+1. Patch PV `reclaimPolicy` with `kubectl patch pv my-pv-name -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'`
+2. Delete Old Pod and PVC
+3. Patch PV `claimRef` with `kubectl patch pv my-pv-name -p '{"spec":{"claimRef": null}}'`
+4. Create new Pod and PVC with existing claimName `.spec.claimRef.name = my-pv-name`
+
 
 ## Building
 
