@@ -34,16 +34,16 @@ jobs:
       - name: Log into registry
         uses: docker/login-action@v1
         with:
-          registry: quay.io
-          username: apalia+github_cloudstack_csi_driver
-          password: ${{ secrets.QUAY_TOKEN }}
+          registry: ${{ secrets.REGISTRY_CARGO_SYSTEM_URL }}
+          username: ${{ secrets.REGISTRY_CARGO_SYSTEM_USERNAME }}
+          password: ${{ secrets.REGISTRY_CARGO_SYSTEM_PASSWORD }}
 
       - name: Push master
         if: github.ref == 'refs/heads/master'
         run: |
           for img in $IMAGES; do
-              docker tag ${img} ${REGISTRY_NAME}/${img}:master
-              docker push ${REGISTRY_NAME}/${img}:master
+              docker tag ${img} ${{ secrets.REGISTRY_CARGO_URL}}/${img}:master
+              docker push ${{ secrets.REGISTRY_CARGO_URL}}/${img}:master
           done
 
       - name: Push tagged release
@@ -53,8 +53,8 @@ jobs:
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed -e 's/^v//')
 
           for img in $IMAGES; do
-              docker tag ${img} ${REGISTRY_NAME}/${img}:${VERSION}
-              docker push ${REGISTRY_NAME}/${img}:${VERSION}
+              docker tag ${img} ${{ secrets.REGISTRY_CARGO_URL}}/${img}:${VERSION}
+              docker push ${{ secrets.REGISTRY_CARGO_URL}}/${img}:${VERSION}
           done
 
       - name: Upload cloudstack-csi-sc-syncer artifact
@@ -87,9 +87,9 @@ jobs:
           echo "---" >> manifest.yaml
           cat deploy/k8s/csidriver.yaml >> manifest.yaml
           echo "---" >> manifest.yaml
-          sed -E "s|image: +cloudstack-csi-driver|image: ${REGISTRY_NAME}/cloudstack-csi-driver:${VERSION}|" deploy/k8s/controller-deployment.yaml >> manifest.yaml
+          sed -E "s|image: +cloudstack-csi-driver|image: ${{ secrets.REGISTRY_CARGO_URL}}/cloudstack-csi-driver:${VERSION}|" deploy/k8s/controller-deployment.yaml >> manifest.yaml
           echo "---" >> manifest.yaml
-          sed -E "s|image: +cloudstack-csi-driver|image: ${REGISTRY_NAME}/cloudstack-csi-driver:${VERSION}|" deploy/k8s/node-daemonset.yaml >> manifest.yaml
+          sed -E "s|image: +cloudstack-csi-driver|image: ${{ secrets.REGISTRY_CARGO_URL}}/cloudstack-csi-driver:${VERSION}|" deploy/k8s/node-daemonset.yaml >> manifest.yaml
 
       - name: Create Release
         id: create_release
