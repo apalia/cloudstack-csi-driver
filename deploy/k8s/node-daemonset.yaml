@@ -29,7 +29,7 @@ spec:
           imagePullPolicy: Always
           args:
             - "-endpoint=$(CSI_ENDPOINT)"
-            - "-cloudstackconfig=/etc/cloudstack-csi-driver/cloudstack.ini"
+            - "-cloudstackconfig=/etc/cloudstack-csi-driver/cloud-config"
             - "-nodeName=$(NODE_NAME)"
             - "-debug"
           env:
