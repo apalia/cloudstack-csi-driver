@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
@@ -18,15 +19,16 @@ import (
 const (
 	// default file system type to be used when it is not provided
 	defaultFsType                 = "ext4"
-	maxAllowedBlockVolumesPerNode = 4
+	maxAllowedBlockVolumesPerNode = 10
 )
 
 type nodeServer struct {
 	csi.UnimplementedNodeServer
-	connector  cloud.Interface
-	mounter    mount.Interface
-	nodeName   string
-	hypervisor string
+	connector                     cloud.Interface
+	mounter                       mount.Interface
+	nodeName                      string
+	hypervisor                    string
+	maxAllowedBlockVolumesPerNode int
 }
 
 // NewNodeServer creates a new Node gRPC server.
@@ -40,14 +42,23 @@ func NewNodeServer(connector cloud.Interface, mounter mount.Interface, nodeName 
 		panic("Environment variable NODE_HYPERVISOR must be 'vmware' or 'kvm'")
 	}
 
+	maxVolumesStr, ok := os.LookupEnv("NODE_MAX_BLOCK_VOLUMES")
+	if ok {
+		_, err := strconv.Atoi(maxVolumesStr)
+		if err != nil {
+			panic("Environment variable NODE_MAX_BLOCK_VOLUMES must be of type integer: " + err.Error())
+		}
+	}
+
 	if mounter == nil {
 		mounter = mount.New()
 	}
 	return &nodeServer{
-		connector:  connector,
-		mounter:    mounter,
-		nodeName:   nodeName,
-		hypervisor: hypervisor,
+		connector:                     connector,
+		mounter:                       mounter,
+		nodeName:                      nodeName,
+		hypervisor:                    hypervisor,
+		maxAllowedBlockVolumesPerNode: getMaxAllowedVolumes(),
 	}
 }
 
@@ -430,4 +441,16 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 			},
 		},
 	}, nil
+}
+
+func getMaxAllowedVolumes() int {
+	maxVolumes := maxAllowedBlockVolumesPerNode
+	maxVolumesStr, ok := os.LookupEnv("NODE_MAX_BLOCK_VOLUMES")
+	if ok {
+		max, err := strconv.Atoi(maxVolumesStr)
+		if err != nil {
+			maxVolumes = max
+		}
+	}
+	return maxVolumes
 }

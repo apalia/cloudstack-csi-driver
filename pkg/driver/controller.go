@@ -285,7 +285,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	//Check max volumes
-	if len(vols) >= maxAllowedBlockVolumesPerNode {
+	if len(vols) >= getMaxAllowedVolumes() {
 		return nil, status.Errorf(codes.ResourceExhausted, "Maximum allowed volumes (%d/%d) per node reached. Could not attach volume %s", len(vols), maxAllowedBlockVolumesPerNode, volumeID)
 	}
 
