@@ -372,7 +372,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	return &csi.NodeGetInfoResponse{
 		NodeId:             vm.ID,
 		AccessibleTopology: topology.ToCSI(),
-		MaxVolumesPerNode:  maxAllowedBlockVolumesPerNode,
+		MaxVolumesPerNode:  int64(getMaxAllowedVolumes()),
 	}, nil
 }
 

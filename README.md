@@ -58,6 +58,12 @@ Set the correct hypervisor in the DaemonSet Env Vars:
               value: vmware
 ```
 
+You can manually set the maximal attachable number of block volumes per node:
+```
+            - name: NODE_MAX_BLOCK_VOLUMES
+              value: "15" #Default value is 10 volumes per node
+```
+
 If you have also deployed the [CloudStack Kubernetes Provider](https://github.com/apache/cloudstack-kubernetes-provider),
 you may use the same secret for both tools.
 

@@ -24,39 +24,39 @@ spec:
               value: unix:///csi/csi.sock
             - name: NODE_HYPERVISOR
               value: vmware
+            - name: NODE_MAX_BLOCK_VOLUMES
+              value: "10"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-          image: registry.puzzle.ch/cschlatter/cloudstack-csi-driver:v1.0.0
+          image: registry.swisstxt.ch/stxt-proj-cargo-system/cloudstack-csi-driver:latest
           imagePullPolicy: Always
           name: cloudstack-csi-node
           resources: {}
           securityContext:
-            allowPrivilegeEscalation: true
-            capabilities:
-              add:
-                - all
             privileged: true
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-            - mountPath: /csi
-              name: plugin-dir
-            - mountPath: /var/lib/kubelet
-              mountPropagation: Bidirectional
-              name: kubelet-dir
-            - mountPath: /dev
-              name: device-dir
-            - mountPath: /run/cloud-init/
-              name: cloud-init-dir
-            - mountPath: /etc/cloudstack-csi-driver
-              name: cloudstack-conf
-            - mountPath: /sys/class/scsi_host/
-              name: scsi-host-dir
-            - mountPath: /sys/devices/
-              name: scsi-device-dir
+          - mountPath: /csi
+            name: plugin-dir
+          - mountPath: /var/lib/kubelet
+            mountPropagation: Bidirectional
+            name: kubelet-dir
+          - mountPath: /dev
+            name: device-dir
+          - mountPath: /run/cloud-init/
+            name: cloud-init-dir
+          - mountPath: /etc/cloudstack-csi-driver
+            name: cloudstack-conf
+          - mountPath: /sys/class/scsi_host/
+            name: sys-class-scsi-host-dir
+          - mountPath: /sys/class/scsi_device/
+            name: sys-class-scsi-device-dir
+          - mountPath: /sys/devices
+            name: sys-devices
         - args:
             - --csi-address=$(ADDRESS)
             - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
@@ -114,13 +114,17 @@ spec:
             type: Directory
           name: cloud-init-dir
         - hostPath:
-            path: /sys/class/scsi_host/
+            path: /sys/class/scsi_host
             type: Directory
-          name: scsi-host-dir
+          name: sys-class-scsi-host-dir
         - hostPath:
-            path: /sys/devices/
-            type: ""
-          name: scsi-device-dir
+            path: /sys/class/scsi_device
+            type: Directory
+          name: sys-class-scsi-device-dir
+        - hostPath:
+            path: /sys/devices
+            type: Directory
+          name: sys-devices
         - name: cloudstack-conf
           secret:
             defaultMode: 420
