@@ -16,7 +16,7 @@ import (
 const agent = "cloudstack-csi-sc-syncer"
 
 var (
-	cloudstackconfig = flag.String("cloudstackconfig", "./cloudstack.ini", "CloudStack configuration file")
+	cloudstackconfig = flag.String("cloudstackconfig", "./cloud-config", "CloudStack configuration file")
 	kubeconfig       = flag.String("kubeconfig", path.Join(os.Getenv("HOME"), ".kube/config"), "Kubernetes configuration file. Use \"-\" to use in-cluster configuration.")
 	label            = flag.String("label", "app.kubernetes.io/managed-by="+agent, "")
 	namePrefix       = flag.String("namePrefix", "cloudstack-", "")

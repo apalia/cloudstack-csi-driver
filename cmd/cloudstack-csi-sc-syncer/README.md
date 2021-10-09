@@ -87,7 +87,7 @@ spec:
         - name: cloudstack-csi-sc-syncer
           image: quay.io/apalia/cloudstack-csi-sc-syncer:${version}
           args:
-            - "-cloudstackconfig=/etc/cloudstack-csi-driver/cloudstack.ini"
+            - "-cloudstackconfig=/etc/cloudstack-csi-driver/cloud-config"
             - "-kubeconfig=-"
           volumeMounts:
             - name: cloudstack-conf

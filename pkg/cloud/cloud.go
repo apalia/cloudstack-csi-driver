@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/xanzy/go-cloudstack/v2/cloudstack"
+	"github.com/apache/cloudstack-go/v2/cloudstack"
 )
 
 // Interface is the CloudStack client interface.
@@ -52,8 +52,8 @@ type VM struct {
 
 // Specific errors
 var (
-	ErrNotFound       = errors.New("Not found")
-	ErrTooManyResults = errors.New("Too many results")
+	ErrNotFound       = errors.New("not found")
+	ErrTooManyResults = errors.New("too many results")
 )
 
 // client is the implementation of Interface.

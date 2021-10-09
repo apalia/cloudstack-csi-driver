@@ -30,7 +30,7 @@ plugin for [Apache CloudStack](https://cloudstack.apache.org/).
 
 ### Configuration
 
-Create the CloudStack configuration file `cloudstack.ini`.
+Create the CloudStack configuration file `cloud-config`.
 
 It should have the following format, defined for the [CloudStack Kubernetes Provider](https://github.com/apache/cloudstack-kubernetes-provider):
 
@@ -48,7 +48,7 @@ Create a secret named `cloudstack-secret` in namespace `kube-system`:
 ```
 kubectl create secret generic \
   --namespace kube-system \
-  --from-file ./cloudstack.ini \
+  --from-file ./cloud-config \
   cloudstack-secret
 ```
 

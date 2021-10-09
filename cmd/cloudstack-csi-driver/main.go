@@ -12,15 +12,16 @@ import (
 	"os"
 	"path"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
-	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
+	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
 )
 
 var (
 	endpoint         = flag.String("endpoint", "unix:///tmp/csi.sock", "CSI endpoint")
-	cloudstackconfig = flag.String("cloudstackconfig", "./cloudstack.ini", "CloudStack configuration file")
+	cloudstackconfig = flag.String("cloudstackconfig", "./cloud-config", "CloudStack configuration file")
 	nodeName         = flag.String("nodeName", "", "Node name")
 	debug            = flag.Bool("debug", false, "Enable debug logging")
 	showVersion      = flag.Bool("version", false, "Show version")
