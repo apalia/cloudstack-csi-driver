@@ -3,7 +3,9 @@ package driver
 import (
 	"context"
 	"fmt"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"math/rand"
+	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -24,17 +26,18 @@ var onlyVolumeCapAccessMode = csi.VolumeCapability_AccessMode{
 type controllerServer struct {
 	csi.UnimplementedControllerServer
 	connector cloud.Interface
+	locks     map[string]*sync.Mutex
 }
 
 // NewControllerServer creates a new Controller gRPC server.
 func NewControllerServer(connector cloud.Interface) csi.ControllerServer {
 	return &controllerServer{
 		connector: connector,
+		locks:     make(map[string]*sync.Mutex),
 	}
 }
 
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-
 	// Check arguments
 
 	if req.GetName() == "" {
@@ -115,7 +118,18 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		zoneID = t.ZoneID
 	}
 
-	volID, err := cs.connector.CreateVolume(ctx, diskOfferingID, zoneID, name, sizeInGB)
+	projectID := cs.connector.GetProjectID()
+	domainID := ""
+
+	if projectID != "" {
+		domainID, err = cs.connector.GetDomainID(ctx)
+		if err != nil {
+			ctxzap.Extract(ctx).Sugar().Debugf("could not get a domainID for project %s, create volume without DomainID", projectID)
+			//return nil, status.Errorf(codes.Internal, "Cannot create volume %s in project %s due error in GetDomainID: %v", name, projectID, err.Error())
+		}
+	}
+
+	volID, err := cs.connector.CreateVolume(ctx, diskOfferingID, projectID, domainID, zoneID, name, sizeInGB)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot create volume %s: %v", name, err.Error())
 	}
@@ -204,7 +218,6 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	// Check arguments
-
 	if req.GetVolumeId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
@@ -214,6 +227,15 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.InvalidArgument, "Node ID missing in request")
 	}
 	nodeID := req.GetNodeId()
+
+	//Ensure only one node is processing at same time
+	lock, ok := cs.locks[nodeID]
+	if !ok {
+		lock = &sync.Mutex{}
+		cs.locks[nodeID] = lock
+	}
+	lock.Lock()
+	defer lock.Unlock()
 
 	if req.GetReadonly() {
 		return nil, status.Error(codes.InvalidArgument, "Readonly not possible")
@@ -236,7 +258,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	if vol.VirtualMachineID != "" && vol.VirtualMachineID != nodeID {
-		return nil, status.Error(codes.AlreadyExists, "Volume already assigned")
+		return nil, status.Error(codes.AlreadyExists, "Volume already assigned to another node")
 	}
 
 	if _, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
@@ -246,8 +268,16 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
 	}
 
+	projectID := cs.connector.GetProjectID()
+
+	vols, err := cs.connector.ListVolumesForVM(ctx, nodeID, projectID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Error no volumes found for nodeID %s: %v", nodeID, err)
+	}
+
 	if vol.VirtualMachineID == nodeID {
 		// volume already attached
+		ctxzap.Extract(ctx).Sugar().Debugf("volume %s is already attached on node %s", volumeID, nodeID)
 
 		publishContext := map[string]string{
 			deviceIDContextKey: vol.DeviceID,
@@ -255,10 +285,19 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{PublishContext: publishContext}, nil
 	}
 
+	//Check max volumes
+	if len(vols) >= getMaxAllowedVolumes() {
+		return nil, status.Errorf(codes.ResourceExhausted, "Maximum allowed volumes (%d/%d) per node reached. Could not attach volume %s", len(vols), maxAllowedBlockVolumesPerNode, volumeID)
+	}
+
 	deviceID, err := cs.connector.AttachVolume(ctx, volumeID, nodeID)
 	if err != nil {
+		ctxzap.Extract(ctx).Sugar().Errorf("volume %s failed node %s (may attached on node %s)", volumeID, nodeID, vol.VirtualMachineID)
+
 		return nil, status.Errorf(codes.Internal, "Cannot attach volume %s: %s", volumeID, err.Error())
 	}
+
+	ctxzap.Extract(ctx).Sugar().Debugf("volume %s attached successfully on node %s", volumeID, nodeID)
 
 	publishContext := map[string]string{
 		deviceIDContextKey: deviceID,
@@ -279,6 +318,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 	nodeID := req.GetNodeId()
 
+	ctxzap.Extract(ctx).Sugar().Debugf("ControllerUnpublishVolume: try to unpublish volume %s on node %s", volumeID, nodeID)
 	// Check volume
 	if vol, err := cs.connector.GetVolumeByID(ctx, volumeID); err == cloud.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "Volume %v not found", volumeID)
@@ -309,6 +349,8 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot detach volume %s: %s", volumeID, err.Error())
 	}
+
+	ctxzap.Extract(ctx).Sugar().Debugf("ControllerUnpublishVolume: volume %s detached successfully on node %s", volumeID, nodeID)
 
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }

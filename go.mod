@@ -9,6 +9,7 @@ require (
 	github.com/hashicorp/go-uuid v1.0.2
 	github.com/kubernetes-csi/csi-test/v4 v4.2.0
 	go.uber.org/zap v1.16.0
+	golang.org/x/sys v0.0.0-20201207223542-d4d67f95c62d
 	golang.org/x/text v0.3.6
 	google.golang.org/genproto v0.0.0-20210726200206-e7812ac95cc0 // indirect
 	google.golang.org/grpc v1.39.0

@@ -40,6 +40,7 @@ api-url = <CloudStack API URL>
 api-key = <CloudStack API Key>
 secret-key = <CloudStack API Secret>
 ssl-no-verify = <Disable SSL certificate validation: true or false (optional)>
+project-id = <project ID>
 ```
 
 Create a secret named `cloudstack-secret` in namespace `kube-system`:
@@ -49,6 +50,18 @@ kubectl create secret generic \
   --namespace kube-system \
   --from-file ./cloud-config \
   cloudstack-secret
+```
+
+Set the correct hypervisor in the DaemonSet Env Vars:
+```
+            - name: NODE_HYPERVISOR
+              value: vmware
+```
+
+You can manually set the maximal attachable number of block volumes per node:
+```
+            - name: NODE_MAX_BLOCK_VOLUMES
+              value: "15" #Default value is 10 volumes per node
 ```
 
 If you have also deployed the [CloudStack Kubernetes Provider](https://github.com/apache/cloudstack-kubernetes-provider),
@@ -88,10 +101,18 @@ disk offerings to Kubernetes storage classes.
 
 Example:
 
-```
+```bash
 kubectl apply -f ./examples/k8s/pvc.yaml
 kubectl apply -f ./examples/k8s/pod.yaml
 ```
+
+#### Reusing volumes
+
+1. Patch PV `reclaimPolicy` with `kubectl patch pv my-pv-name -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'`
+2. Delete Old Pod and PVC
+3. Patch PV `claimRef` with `kubectl patch pv my-pv-name -p '{"spec":{"claimRef": null}}'`
+4. Create new Pod and PVC with existing claimName `.spec.claimRef.name = my-pv-name`
+
 
 ## Building
 
