@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -108,12 +107,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
-	if runtime.GOOS == "linux" {
-		// containers running with different uid wouldn't be able to use regular mounts. pe. bitnami ones
-		ns.mounter.Command("chmod", "+rwx", target)
-		ns.mounter.Command("chmod", "a+rwx", target)
-	}
-
 	// Volume Mount
 	if notMnt {
 		err = ns.mounter.FormatAndMount(devicePath, target, fsType, mountOptions)
@@ -121,6 +114,13 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
+
+	if os.PathSeparator == '/' {
+		// containers running with different uid wouldn't be able to use regular mounts. pe. bitnami ones
+		ns.mounter.Command("chmod", "+rwx", target)
+		ns.mounter.Command("chmod", "a+rwx", target)
+	}
+
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
