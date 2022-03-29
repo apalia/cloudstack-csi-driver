@@ -87,9 +87,9 @@ jobs:
           echo "---" >> manifest.yaml
           cat deploy/k8s/csidriver.yaml >> manifest.yaml
           echo "---" >> manifest.yaml
-          sed -E "s|image: +cloudstack-csi-driver|image: ${{ secrets.REGISTRY_NAME}}/cloudstack-csi-driver:${VERSION}|" deploy/k8s/controller-deployment.yaml >> manifest.yaml
+          sed -E "s|image: +cloudstack-csi-driver|image: ${REGISTRY_NAME}/cloudstack-csi-driver:${VERSION}|" deploy/k8s/controller-deployment.yaml >> manifest.yaml
           echo "---" >> manifest.yaml
-          sed -E "s|image: +cloudstack-csi-driver|image: ${{ secrets.REGISTRY_NAME}}/cloudstack-csi-driver:${VERSION}|" deploy/k8s/node-daemonset.yaml >> manifest.yaml
+          sed -E "s|image: +cloudstack-csi-driver|image: ${REGISTRY_NAME}/cloudstack-csi-driver:${VERSION}|" deploy/k8s/node-daemonset.yaml >> manifest.yaml
 
       - name: Create Release
         id: create_release
