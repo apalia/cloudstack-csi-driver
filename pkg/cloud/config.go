@@ -12,6 +12,7 @@ type Config struct {
 	APIKey    string
 	SecretKey string
 	VerifySSL bool
+	ProjectID string
 }
 
 // csConfig wraps the config for the CloudStack cloud provider.
@@ -42,5 +43,6 @@ func ReadConfig(configFilePath string) (*Config, error) {
 		APIKey:    cfg.Global.APIKey,
 		SecretKey: cfg.Global.SecretKey,
 		VerifySSL: cfg.Global.SSLNoVerify,
+		ProjectID: cfg.Global.ProjectID,
 	}, nil
 }

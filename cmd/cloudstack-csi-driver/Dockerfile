@@ -11,7 +11,13 @@ RUN apk add --no-cache \
     # Provides mkfs.xfs
     xfsprogs \
     # Provides blkid, also used by k8s.io/mount-utils
-    blkid
+    blkid \
+    eudev \
+    bash
 
 COPY ./bin/cloudstack-csi-driver /cloudstack-csi-driver
+COPY rescan-scsi-bus.sh /usr/bin/
+RUN chmod +x /usr/bin/rescan-scsi-bus.sh
+COPY clean-scsi-bus.sh /usr/bin/
+RUN chmod +x /usr/bin/clean-scsi-bus.sh
 ENTRYPOINT ["/cloudstack-csi-driver"]

@@ -14,6 +14,14 @@ type fakeMounter struct {
 	utilsexec.Interface
 }
 
+func (m *fakeMounter) GetStatistics(volumePath string) (volumeStatistics, error) {
+	return volumeStatistics{}, nil
+}
+
+func (m *fakeMounter) IsBlockDevice(devicePath string) (bool, error) {
+	return true, nil
+}
+
 // NewFake creates an fake implementation of the
 // mount.Interface, to be used in tests.
 func NewFake() Interface {
@@ -26,7 +34,7 @@ func NewFake() Interface {
 	}
 }
 
-func (m *fakeMounter) GetDevicePath(ctx context.Context, volumeID string) (string, error) {
+func (m *fakeMounter) GetDevicePath(ctx context.Context, volumeID string, hypervisor string) (string, error) {
 	return "/dev/sdb", nil
 }
 
@@ -50,4 +58,8 @@ func (*fakeMounter) MakeDir(pathname string) error {
 
 func (*fakeMounter) MakeFile(pathname string) error {
 	return nil
+}
+
+func (m *fakeMounter) CleanScsi(ctx context.Context, deviceID, hypervisor string) {
+	//Do nothing
 }

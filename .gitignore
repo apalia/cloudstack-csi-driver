@@ -1,4 +1,6 @@
 /bin
 /test/e2e/e2e.test
 /test/e2e/ginkgo
+/cloudstack.ini
+/.idea
 cloud-config

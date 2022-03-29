@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -17,25 +19,47 @@ import (
 
 const (
 	// default file system type to be used when it is not provided
-	defaultFsType = "ext4"
+	defaultFsType                 = "ext4"
+	maxAllowedBlockVolumesPerNode = 10
 )
 
 type nodeServer struct {
 	csi.UnimplementedNodeServer
-	connector cloud.Interface
-	mounter   mount.Interface
-	nodeName  string
+	connector                     cloud.Interface
+	mounter                       mount.Interface
+	nodeName                      string
+	hypervisor                    string
+	maxAllowedBlockVolumesPerNode int
 }
 
 // NewNodeServer creates a new Node gRPC server.
 func NewNodeServer(connector cloud.Interface, mounter mount.Interface, nodeName string) csi.NodeServer {
+	hypervisor, ok := os.LookupEnv("NODE_HYPERVISOR")
+	if !ok {
+		panic("Environment variable NODE_HYPERVISOR must be set")
+	}
+
+	if strings.ToLower(hypervisor) != "vmware" && strings.ToLower(hypervisor) == "kvm" {
+		panic("Environment variable NODE_HYPERVISOR must be 'vmware' or 'kvm'")
+	}
+
+	maxVolumesStr, ok := os.LookupEnv("NODE_MAX_BLOCK_VOLUMES")
+	if ok {
+		_, err := strconv.Atoi(maxVolumesStr)
+		if err != nil {
+			panic("Environment variable NODE_MAX_BLOCK_VOLUMES must be of type integer: " + err.Error())
+		}
+	}
+
 	if mounter == nil {
 		mounter = mount.New()
 	}
 	return &nodeServer{
-		connector: connector,
-		mounter:   mounter,
-		nodeName:  nodeName,
+		connector:                     connector,
+		mounter:                       mounter,
+		nodeName:                      nodeName,
+		hypervisor:                    hypervisor,
+		maxAllowedBlockVolumesPerNode: getMaxAllowedVolumes(),
 	}
 }
 
@@ -61,11 +85,14 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
 	}
 
+	ctxzap.Extract(ctx).Sugar().Infof("mount stage volume on target: %s", target)
 	// Now, find the device path
+
+	v, _ := ns.connector.GetVolumeByID(ctx, volumeID)
 
 	deviceID := req.PublishContext[deviceIDContextKey]
 
-	devicePath, err := ns.mounter.GetDevicePath(ctx, volumeID)
+	devicePath, err := ns.mounter.GetDevicePath(ctx, v.DeviceID, ns.hypervisor)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot find device path for volume %s: %s", volumeID, err.Error())
 	}
@@ -114,6 +141,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
+	ctxzap.Extract(ctx).Sugar().Debugf("Staged volume device %s on %s on target %s successfully", volumeID, devicePath, target)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
@@ -167,6 +195,15 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Errorf(codes.Internal, "Could not unmount target %q: %v", target, err)
 	}
 
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnstageVolume: unmounted %s on target %s", dev, target)
+
+	v, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not find volume %s: %v", volumeID, err)
+	}
+
+	ns.mounter.CleanScsi(ctx, v.DeviceID, ns.hypervisor)
+
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
@@ -191,6 +228,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if req.GetStagingTargetPath() == "" {
 		return nil, status.Error(codes.InvalidArgument, "Staging target path missing in request")
+	}
+	v, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "No volume found")
 	}
 
 	readOnly := req.GetReadonly()
@@ -237,12 +278,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := ns.mounter.Mount(source, targetPath, fsType, options); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to mount %s at %s: %s", source, targetPath, err.Error())
 		}
+		ctxzap.Extract(ctx).Sugar().Debugf("mount volume %s from source %s on target %s ", volumeID, source, targetPath)
 	}
 
 	if req.GetVolumeCapability().GetBlock() != nil {
 		volumeID := req.GetVolumeId()
 
-		devicePath, err := ns.mounter.GetDevicePath(ctx, volumeID)
+		devicePath, err := ns.mounter.GetDevicePath(ctx, v.DeviceID, ns.hypervisor)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Cannot find device path for volume %s: %s", volumeID, err.Error())
 		}
@@ -269,12 +311,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := ns.mounter.Mount(devicePath, targetPath, "", options); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to mount %s at %s: %s", devicePath, targetPath, err.Error())
 		}
+		ctxzap.Extract(ctx).Sugar().Infow("### mount volume on devicePath: " + devicePath + " and targetPath: " + targetPath)
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+
 	if req.GetVolumeId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
@@ -284,14 +328,17 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	targetPath := req.GetTargetPath()
 
 	volumeID := req.GetVolumeId()
-	if _, err := ns.connector.GetVolumeByID(ctx, volumeID); err == cloud.ErrNotFound {
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnpublishVolume: unpublish volume %s on node %s", volumeID, targetPath)
+	v, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err == cloud.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "Volume %v not found", volumeID)
 	} else if err != nil {
 		// Error with CloudStack
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
 	}
 
-	err := ns.mounter.Unmount(targetPath)
+	ctxzap.Extract(ctx).Sugar().Debugw("node unpublish (call unmount) volume", "id", volumeID, "targetPath", targetPath)
+	err = ns.mounter.Unmount(targetPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Unmount of targetpath %s failed with error %v", targetPath, err)
 	}
@@ -299,6 +346,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil && !os.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Deleting %s failed with error %v", targetPath, err)
 	}
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeUnpublishVolume: successfully unpublish volume %s on node %s", volumeID, targetPath)
+
+	ns.mounter.CleanScsi(ctx, v.DeviceID, ns.hypervisor)
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -322,6 +373,55 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	return &csi.NodeGetInfoResponse{
 		NodeId:             vm.ID,
 		AccessibleTopology: topology.ToCSI(),
+		MaxVolumesPerNode:  int64(getMaxAllowedVolumes()),
+	}, nil
+}
+
+func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	if req.GetVolumeId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
+	}
+	volumeID := req.GetVolumeId()
+
+	volumePath := req.VolumePath
+	if volumePath == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodeGetVolumeStats Volume Path must be provided")
+	}
+
+	ctxzap.Extract(ctx).Sugar().Debugf("NodeGetVolumeStats: for volume %s", volumeID)
+	_, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err == cloud.ErrNotFound {
+		return nil, status.Errorf(codes.NotFound, "Volume %v not found", volumeID)
+	} else if err != nil {
+		// Error with CloudStack
+		return nil, status.Errorf(codes.Internal, "Error %v", err)
+	}
+
+	_, err = ns.mounter.IsBlockDevice(volumePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to determine if %q is block device: %s", volumePath, err)
+	}
+
+	stats, err := ns.mounter.GetStatistics(volumePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to retrieve capacity statistics for volume path %q: %s", volumePath, err)
+	}
+
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			&csi.VolumeUsage{
+				Available: stats.AvailableBytes,
+				Total:     stats.TotalBytes,
+				Used:      stats.UsedBytes,
+				Unit:      csi.VolumeUsage_BYTES,
+			},
+			&csi.VolumeUsage{
+				Available: stats.AvailableInodes,
+				Total:     stats.TotalInodes,
+				Used:      stats.UsedInodes,
+				Unit:      csi.VolumeUsage_INODES,
+			},
+		},
 	}, nil
 }
 
@@ -335,6 +435,23 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 					},
 				},
 			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS}},
+			},
 		},
 	}, nil
+}
+
+func getMaxAllowedVolumes() int {
+	maxVolumes := maxAllowedBlockVolumesPerNode
+	maxVolumesStr, ok := os.LookupEnv("NODE_MAX_BLOCK_VOLUMES")
+	if ok {
+		max, err := strconv.Atoi(maxVolumesStr)
+		if err != nil {
+			maxVolumes = max
+		}
+	}
+	return maxVolumes
 }
