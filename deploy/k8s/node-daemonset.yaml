@@ -31,7 +31,7 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-          image: registry.swisstxt.ch/stxt-proj-cargo-system/cloudstack-csi-driver:latest
+          image: cloudstack-csi-driver
           imagePullPolicy: Always
           name: cloudstack-csi-node
           resources: {}

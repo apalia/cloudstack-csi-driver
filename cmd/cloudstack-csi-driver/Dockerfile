@@ -2,7 +2,7 @@ FROM alpine:3.14.0
 
 LABEL \
     org.opencontainers.image.description="CloudStack CSI driver" \
-    org.opencontainers.image.source="https://github.com/swisstxt/cloudstack-csi-driver/"
+    org.opencontainers.image.source="https://github.com/apalia/cloudstack-csi-driver/"
 
 RUN apk add --no-cache \
     ca-certificates \
