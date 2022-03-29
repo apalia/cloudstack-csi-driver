@@ -34,16 +34,16 @@ jobs:
       - name: Log into registry
         uses: docker/login-action@v1
         with:
-          registry: ${{ secrets.quay.io }}
-          username: ${{ secrets.apalia+github_cloudstack_csi_driver }}
+          registry: quay.io
+          username: apalia+github_cloudstack_csi_driver
           password: ${{ secrets.QUAY_TOKEN }}
 
       - name: Push master
         if: github.ref == 'refs/heads/master'
         run: |
           for img in $IMAGES; do
-              docker tag ${img} ${{ secrets.REGISTRY_NAME}}/${img}:master
-              docker push ${{ secrets.REGISTRY_NAME}}/${img}:master
+              docker tag ${img} ${REGISTRY_NAME}/${img}:master
+              docker push ${REGISTRY_NAME}/${img}:master
           done
 
       - name: Push tagged release
@@ -53,8 +53,8 @@ jobs:
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed -e 's/^v//')
 
           for img in $IMAGES; do
-              docker tag ${img} ${{ secrets.REGISTRY_NAME}}/${img}:${VERSION}
-              docker push ${{ secrets.REGISTRY_NAME}}/${img}:${VERSION}
+              docker tag ${img} ${REGISTRY_NAME}/${img}:${VERSION}
+              docker push ${REGISTRY_NAME}/${img}:${VERSION}
           done
 
       - name: Upload cloudstack-csi-sc-syncer artifact
