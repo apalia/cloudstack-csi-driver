@@ -39,6 +39,24 @@ func NewNodeServer(connector cloud.Interface, mounter mount.Interface, nodeName 
 	}
 }
 
+func ensurePermissions(ctx context.Context, mounter mount.Interface, targetPath string) error {
+	if os.PathSeparator != '/' {
+		return nil
+	}
+
+	// containers running with different uid wouldn't be able to use regular mounts. pe. bitnami ones
+	ctxzap.Extract(ctx).Sugar().Infow("Ensuring permissions","targetPath", targetPath)
+	err := mounter.Command("chmod", "+rwx", targetPath).Run()
+	if err != nil {
+		return status.Errorf(codes.Internal, "Cannot fix permissions in %s", targetPath, err.Error())
+	}
+	err = mounter.Command("chmod", "a+rwx", targetPath).Run()
+	if err != nil {
+		return status.Errorf(codes.Internal, "Cannot fix permissions in %s", targetPath, err.Error())
+	}
+	return nil
+}
+
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 
 	// Check parameters
@@ -114,6 +132,12 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
+
+	err = ensurePermissions(ctx, ns.mounter, target)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
@@ -269,6 +293,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := ns.mounter.Mount(devicePath, targetPath, "", options); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to mount %s at %s: %s", devicePath, targetPath, err.Error())
 		}
+	}
+
+	err := ensurePermissions(ctx, ns.mounter, targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
