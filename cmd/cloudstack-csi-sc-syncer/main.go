@@ -10,7 +10,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/syncer"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/syncer"
 )
 
 const agent = "cloudstack-csi-sc-syncer"

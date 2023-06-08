@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/cloud"
 )
 
 // Config holds the syncer tool configuration.

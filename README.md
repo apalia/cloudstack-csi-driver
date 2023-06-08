@@ -1,9 +1,8 @@
 # CloudStack CSI Driver
 
-[![Quay.io](https://img.shields.io/badge/Quay.io-container_image-informational)](https://quay.io/repository/apalia/cloudstack-csi-driver)
-[![Go Reference](https://pkg.go.dev/badge/github.com/apalia/cloudstack-csi-driver.svg)](https://pkg.go.dev/github.com/apalia/cloudstack-csi-driver)
-[![Go Report Card](https://goreportcard.com/badge/github.com/apalia/cloudstack-csi-driver)](https://goreportcard.com/report/github.com/apalia/cloudstack-csi-driver)
-[![Release](https://github.com/apalia/cloudstack-csi-driver/workflows/Release/badge.svg?branch=master)](https://github.com/apalia/cloudstack-csi-driver/actions)
+[![Go Reference](https://pkg.go.dev/badge/github.com/leaseweb/cloudstack-csi-driver.svg)](https://pkg.go.dev/github.com/leaseweb/cloudstack-csi-driver)
+[![Go Report Card](https://goreportcard.com/badge/github.com/leaseweb/cloudstack-csi-driver)](https://goreportcard.com/report/github.com/leaseweb/cloudstack-csi-driver)
+[![Release](https://github.com/leaseweb/cloudstack-csi-driver/workflows/Release/badge.svg?branch=master)](https://github.com/leaseweb/cloudstack-csi-driver/actions)
 
 This repository provides a [Container Storage Interface (CSI)](https://github.com/container-storage-interface/spec)
 plugin for [Apache CloudStack](https://cloudstack.apache.org/).
@@ -12,7 +11,7 @@ plugin for [Apache CloudStack](https://cloudstack.apache.org/).
 
 ### Requirements
 
-- Minimal Kubernetes version: v1.17
+- Minimal Kubernetes version: v1.25
 
 - The Kubernetes cluster must run in CloudStack. Tested only in a KVM zone.
 
@@ -57,7 +56,7 @@ you may use the same secret for both tools.
 ### Deployment
 
 ```
-kubectl apply -f https://github.com/apalia/cloudstack-csi-driver/releases/latest/download/manifest.yaml
+kubectl apply -f https://github.com/leaseweb/cloudstack-csi-driver/releases/latest/download/manifest.yaml
 ```
 
 ### Creation of Storage classes

@@ -7,8 +7,8 @@ import (
 
 	"github.com/hashicorp/go-uuid"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
-	"github.com/apalia/cloudstack-csi-driver/pkg/util"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/cloud"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/util"
 )
 
 const zoneID = "a1887604-237c-4212-a9cd-94620b7880fa"

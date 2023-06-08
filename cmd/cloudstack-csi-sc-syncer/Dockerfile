@@ -2,7 +2,7 @@ FROM alpine:3.14.0
 
 LABEL \
     org.opencontainers.image.description="CloudStack disk offering to Kubernetes storage class syncer" \
-    org.opencontainers.image.source="https://github.com/apalia/cloudstack-csi-driver/"
+    org.opencontainers.image.source="https://github.com/leaseweb/cloudstack-csi-driver/"
 
 RUN apk add --no-cache ca-certificates
 

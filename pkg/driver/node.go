@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
-	"github.com/apalia/cloudstack-csi-driver/pkg/mount"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/cloud"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/mount"
 )
 
 const (

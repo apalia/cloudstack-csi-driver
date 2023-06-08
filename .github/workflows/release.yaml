@@ -8,7 +8,7 @@ on:
       - v*
 
 env:
-  REGISTRY_NAME: quay.io/apalia
+  REGISTRY_NAME: ghcr.io/leaseweb
   IMAGES: "cloudstack-csi-driver cloudstack-csi-sc-syncer"
 
 jobs:
@@ -34,9 +34,9 @@ jobs:
       - name: Log into registry
         uses: docker/login-action@v1
         with:
-          registry: quay.io
-          username: apalia+github_cloudstack_csi_driver
-          password: ${{ secrets.QUAY_TOKEN }}
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
 
       - name: Push master
         if: github.ref == 'refs/heads/master'

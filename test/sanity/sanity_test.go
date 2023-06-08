@@ -1,4 +1,4 @@
-// +build sanity
+//go:build sanity
 
 package sanity
 
@@ -11,9 +11,9 @@ import (
 	"github.com/kubernetes-csi/csi-test/v4/pkg/sanity"
 	"go.uber.org/zap"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud/fake"
-	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
-	"github.com/apalia/cloudstack-csi-driver/pkg/mount"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/cloud/fake"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/driver"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/mount"
 )
 
 func TestSanity(t *testing.T) {
