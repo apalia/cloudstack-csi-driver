@@ -2,8 +2,7 @@
 //
 // To get usage information:
 //
-//    cloudstack-csi-driver -h
-//
+//	cloudstack-csi-driver -h
 package main
 
 import (
@@ -15,8 +14,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/apalia/cloudstack-csi-driver/pkg/cloud"
-	"github.com/apalia/cloudstack-csi-driver/pkg/driver"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/cloud"
+	"github.com/leaseweb/cloudstack-csi-driver/pkg/driver"
 )
 
 var (

@@ -1,4 +1,4 @@
-module github.com/apalia/cloudstack-csi-driver
+module github.com/leaseweb/cloudstack-csi-driver
 
 go 1.15
 

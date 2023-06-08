@@ -20,7 +20,7 @@ You may use it locally or as a Kubernetes Job.
 You must have a CloudStack configuration file and a Kubernetes `kubeconfig`
 file.
 
-1. Download `cloudstack-csi-sc-syncer` from [latest release](https://github.com/apalia/cloudstack-csi-driver/releases/latest/);
+1. Download `cloudstack-csi-sc-syncer` from [latest release](https://github.com/leaseweb/cloudstack-csi-driver/releases/latest/);
 
 1. Set the execution permission:
 
@@ -85,7 +85,7 @@ spec:
       serviceAccountName: cloudstack-csi-sc-syncer
       containers:
         - name: cloudstack-csi-sc-syncer
-          image: quay.io/apalia/cloudstack-csi-sc-syncer:${version}
+          image: ghcr.io/leaseweb/cloudstack-csi-sc-syncer:${version}
           args:
             - "-cloudstackconfig=/etc/cloudstack-csi-driver/cloud-config"
             - "-kubeconfig=-"
