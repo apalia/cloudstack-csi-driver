@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"google.golang.org/grpc"
 )
@@ -35,7 +34,7 @@ func (cs *cloudstackDriver) serve(ids csi.IdentityServer, ctrls csi.ControllerSe
 
 	// Log every request and payloads (request + response)
 	opts := []grpc.ServerOption{
-		grpc_middleware.WithUnaryServerChain(
+		grpc.ChainUnaryInterceptor(
 			grpc_zap.UnaryServerInterceptor(cs.logger),
 			grpc_zap.PayloadUnaryServerInterceptor(cs.logger, func(context.Context, string, interface{}) bool { return true }),
 		),
