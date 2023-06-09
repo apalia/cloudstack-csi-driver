@@ -111,11 +111,15 @@ func (c *client) AttachVolume(ctx context.Context, volumeID, vmID string) (strin
 	return strconv.FormatInt(r.Deviceid, 10), nil
 }
 
-func (c *client) DetachVolume(ctx context.Context, volumeID string) error {
+func (c *client) DetachVolume(ctx context.Context, volumeID string, vmID string) error {
 	p := c.Volume.NewDetachVolumeParams()
 	p.SetId(volumeID)
+	if vmID != "" {
+		p.SetVirtualmachineid(vmID)
+	}
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "DetachVolume", "params", map[string]string{
-		"id": volumeID,
+		"id":               volumeID,
+		"virtualmachineid": vmID,
 	})
 	_, err := c.Volume.DetachVolume(p)
 	return err

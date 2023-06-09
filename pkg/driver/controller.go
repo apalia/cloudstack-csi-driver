@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -24,12 +25,14 @@ var onlyVolumeCapAccessMode = csi.VolumeCapability_AccessMode{
 type controllerServer struct {
 	csi.UnimplementedControllerServer
 	connector cloud.Interface
+	locks     map[string]*sync.Mutex
 }
 
 // NewControllerServer creates a new Controller gRPC server.
 func NewControllerServer(connector cloud.Interface) csi.ControllerServer {
 	return &controllerServer{
 		connector: connector,
+		locks:     make(map[string]*sync.Mutex),
 	}
 }
 
@@ -215,6 +218,15 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 	nodeID := req.GetNodeId()
 
+	//Ensure only one node is processing at same time
+	lock, ok := cs.locks[nodeID]
+	if !ok {
+		lock = &sync.Mutex{}
+		cs.locks[nodeID] = lock
+	}
+	lock.Lock()
+	defer lock.Unlock()
+
 	if req.GetReadonly() {
 		return nil, status.Error(codes.InvalidArgument, "Readonly not possible")
 	}
@@ -236,11 +248,11 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	if vol.VirtualMachineID != "" && vol.VirtualMachineID != nodeID {
-		return nil, status.Error(codes.AlreadyExists, "Volume already assigned")
+		return nil, status.Error(codes.AlreadyExists, "Volume already assigned to another node")
 	}
 
 	if _, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
-		return nil, status.Errorf(codes.NotFound, "VM %v not found", volumeID)
+		return nil, status.Errorf(codes.NotFound, "VM %v not found", nodeID)
 	} else if err != nil {
 		// Error with CloudStack
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
@@ -273,39 +285,30 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
 	volumeID := req.GetVolumeId()
-
-	if req.GetNodeId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "Node ID missing in request")
-	}
 	nodeID := req.GetNodeId()
 
 	// Check volume
 	if vol, err := cs.connector.GetVolumeByID(ctx, volumeID); err == cloud.ErrNotFound {
-		return nil, status.Errorf(codes.NotFound, "Volume %v not found", volumeID)
+		// Volume does not exist in CloudStack. We can safely assume this volume is no longer attached
+		// The spec requires us to return OK here
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	} else if err != nil {
 		// Error with CloudStack
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
-	} else if vol.VirtualMachineID != nodeID {
-		// Nothing to do
+	} else if nodeID != "" && vol.VirtualMachineID != nodeID {
+		// Volume is present but not attached to this particular nodeID
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
 	// Check VM existence
-	if _, err := cs.connector.GetVolumeByID(ctx, volumeID); err == cloud.ErrNotFound {
-		return nil, status.Errorf(codes.NotFound, "Volume %v not found", volumeID)
-	} else if err != nil {
-		// Error with CloudStack
-		return nil, status.Errorf(codes.Internal, "Error %v", err)
-	}
-
 	if _, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
-		return nil, status.Errorf(codes.NotFound, "VM %v not found", volumeID)
+		return nil, status.Errorf(codes.NotFound, "VM %v not found", nodeID)
 	} else if err != nil {
 		// Error with CloudStack
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
 	}
 
-	err := cs.connector.DetachVolume(ctx, volumeID)
+	err := cs.connector.DetachVolume(ctx, volumeID, nodeID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot detach volume %s: %s", volumeID, err.Error())
 	}
