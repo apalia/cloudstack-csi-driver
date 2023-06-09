@@ -252,7 +252,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	if _, err := cs.connector.GetVMByID(ctx, nodeID); err == cloud.ErrNotFound {
-		return nil, status.Errorf(codes.NotFound, "VM %v not found", volumeID)
+		return nil, status.Errorf(codes.NotFound, "VM %v not found", nodeID)
 	} else if err != nil {
 		// Error with CloudStack
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
@@ -285,15 +285,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
 	volumeID := req.GetVolumeId()
-
-	// TODO: according to the spec, node_id is allowed to be empty:
-	//
-	// If the value is set, the SP MUST unpublish the volume from
-	// the specified node. If the value is unset, the SP MUST unpublish
-	// the volume from all nodes it is published to.
-	if req.GetNodeId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "Node ID missing in request")
-	}
 	nodeID := req.GetNodeId()
 
 	// Check volume
@@ -304,8 +295,8 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	} else if err != nil {
 		// Error with CloudStack
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
-	} else if vol.VirtualMachineID != nodeID {
-		// Nothing to do
+	} else if nodeID != "" && vol.VirtualMachineID != nodeID {
+		// Volume is present but not attached to this particular nodeID
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
@@ -317,7 +308,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
 	}
 
-	err := cs.connector.DetachVolume(ctx, volumeID)
+	err := cs.connector.DetachVolume(ctx, volumeID, nodeID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot detach volume %s: %s", volumeID, err.Error())
 	}
