@@ -39,3 +39,14 @@ updates:
     schedule:
       interval: weekly
       day: sunday
+    ignore:
+      - dependency-name: "k8s.io/api"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "k8s.io/apimachinery"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "k8s.io/client-go"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "k8s.io/mount-utils"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "github.com/container-storage-interface/spec"
+        update-types: ["version-update:semver-minor"]
