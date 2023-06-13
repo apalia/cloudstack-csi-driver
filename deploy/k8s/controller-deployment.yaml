@@ -47,7 +47,7 @@ spec:
               mountPath: /etc/cloudstack-csi-driver
 
         - name: external-provisioner
-          image: k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4
+          image: k8s.gcr.io/sig-storage/csi-provisioner:v3.3.1
           imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
