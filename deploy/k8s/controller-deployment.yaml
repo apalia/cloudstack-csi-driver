@@ -22,7 +22,7 @@ spec:
       serviceAccountName: cloudstack-csi-controller
       nodeSelector:
         kubernetes.io/os: linux
-        node-role.kubernetes.io/master: ""
+        node-role.kubernetes.io/control-plane: ""
       tolerations:
         - effect: NoExecute
           operator: Exists
