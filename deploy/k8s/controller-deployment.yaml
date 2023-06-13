@@ -61,7 +61,7 @@ spec:
               mountPath: /var/lib/csi/sockets/pluginproxy/
 
         - name: external-attacher
-          image: k8s.gcr.io/sig-storage/csi-attacher:v3.0.2
+          image: k8s.gcr.io/sig-storage/csi-attacher:v4.3.0
           imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
