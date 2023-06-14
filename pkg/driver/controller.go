@@ -308,7 +308,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, status.Errorf(codes.Internal, "Error %v", err)
 	}
 
-	err := cs.connector.DetachVolume(ctx, volumeID, nodeID)
+	err := cs.connector.DetachVolume(ctx, volumeID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cannot detach volume %s: %s", volumeID, err.Error())
 	}

@@ -100,6 +100,6 @@ func (f *fakeConnector) AttachVolume(ctx context.Context, volumeID, vmID string)
 	return "1", nil
 }
 
-func (f *fakeConnector) DetachVolume(ctx context.Context, volumeID string, vmID string) error {
+func (f *fakeConnector) DetachVolume(ctx context.Context, volumeID string) error {
 	return nil
 }

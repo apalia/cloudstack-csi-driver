@@ -21,7 +21,7 @@ type Interface interface {
 	CreateVolume(ctx context.Context, diskOfferingID, zoneID, name string, sizeInGB int64) (string, error)
 	DeleteVolume(ctx context.Context, id string) error
 	AttachVolume(ctx context.Context, volumeID, vmID string) (string, error)
-	DetachVolume(ctx context.Context, volumeID string, vmID string) error
+	DetachVolume(ctx context.Context, volumeID string) error
 }
 
 // Volume represents a CloudStack volume.
