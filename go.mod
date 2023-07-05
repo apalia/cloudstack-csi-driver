@@ -11,8 +11,7 @@ require (
 	go.uber.org/zap v1.16.0
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/text v0.7.0
-	google.golang.org/genproto v0.0.0-20210726200206-e7812ac95cc0 // indirect
-	google.golang.org/grpc v1.39.0
+	google.golang.org/grpc v1.53.0
 	gopkg.in/gcfg.v1 v1.2.3
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	k8s.io/api v0.21.3
