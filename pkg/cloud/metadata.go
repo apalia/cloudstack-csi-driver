@@ -49,9 +49,9 @@ func (c *client) metadataInstanceID(ctx context.Context) string {
 	return ""
 }
 
-func (c *client) metadataProjectID(ctx context.Context) (string) {
+func (c *client) metadataProjectID(ctx context.Context) string {
 	slog := ctxzap.Extract(ctx).Sugar()
-	
+
 	// Try cloud-init
 	slog.Debug("Try with cloud-init")
 	if _, err := os.Stat(cloudInitInstanceFilePath); err == nil {
@@ -60,12 +60,12 @@ func (c *client) metadataProjectID(ctx context.Context) (string) {
 		if err != nil {
 			slog.Errorf("Cannot read cloud-init instance data: %v", err)
 		} else {
-			if ciData.Ds.Metadata.ProjectID != "" {			
+			if ciData.Ds.Metadata.ProjectID != "" {
 				return ciData.Ds.Metadata.ProjectID
 			}
 		}
 		slog.Error("cloud-init project ID is not provided")
-	} 
+	}
 
 	slog.Debug("CloudStack project ID not found in meta-data.")
 	return ""
@@ -83,11 +83,11 @@ type cloudInitV1 struct {
 }
 
 type cloudInitDs struct {
-  Metadata cloudInitMetadata `json:"meta_data"`
+	Metadata cloudInitMetadata `json:"meta_data"`
 }
 
 type cloudInitMetadata struct {
-	ProjectID  string `json:"project-uuid"`
+	ProjectID string `json:"project-uuid"`
 }
 
 func (c *client) readCloudInit(ctx context.Context, instanceFilePath string) (*cloudInitInstanceData, error) {

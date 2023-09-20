@@ -54,10 +54,11 @@ var (
 // client is the implementation of Interface.
 type client struct {
 	*cloudstack.CloudStackClient
+	projectID string
 }
 
 // New creates a new cloud connector, given its configuration.
 func New(config *Config) Interface {
 	csClient := cloudstack.NewAsyncClient(config.APIURL, config.APIKey, config.SecretKey, config.VerifySSL)
-	return &client{csClient}
+	return &client{csClient, config.ProjectID}
 }

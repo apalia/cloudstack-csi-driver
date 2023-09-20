@@ -14,6 +14,16 @@ func (c *client) GetVolumeByID(ctx context.Context, volumeID string) (*Volume, e
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "ListVolumes", "params", map[string]string{
 		"id": volumeID,
 	})
+
+	if c.projectID == "" {
+		//get projectid from metadata
+		c.projectID = c.metadataProjectID(ctx)
+	}
+
+	if c.projectID != "" {
+		p.SetProjectid(c.projectID)
+	}
+
 	l, err := c.Volume.ListVolumes(p)
 	if err != nil {
 		return nil, err
@@ -43,6 +53,16 @@ func (c *client) GetVolumeByName(ctx context.Context, name string) (*Volume, err
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "ListVolumes", "params", map[string]string{
 		"name": name,
 	})
+
+	if c.projectID == "" {
+		//get projectid from metadata
+		c.projectID = c.metadataProjectID(ctx)
+	}
+
+	if c.projectID != "" {
+		p.SetProjectid(c.projectID)
+	}
+
 	l, err := c.Volume.ListVolumes(p)
 	if err != nil {
 		return nil, err
@@ -72,6 +92,15 @@ func (c *client) CreateVolume(ctx context.Context, diskOfferingID, zoneID, name 
 	p.SetZoneid(zoneID)
 	p.SetName(name)
 	p.SetSize(sizeInGB)
+
+	if c.projectID == "" {
+		//get projectid from metadata
+		c.projectID = c.metadataProjectID(ctx)
+	}
+
+	if c.projectID != "" {
+		p.SetProjectid(c.projectID)
+	}
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "CreateVolume", "params", map[string]string{
 		"diskofferingid": diskOfferingID,
 		"zoneid":         zoneID,
