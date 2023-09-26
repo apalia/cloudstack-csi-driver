@@ -107,14 +107,6 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 	}
 	log.Printf("Storage class name: %s", name)
 
-	var zoneID string
-	vm, err := s.csConnector.GetNodeInfo(ctx, s.nodeName)
-	if err != nil {
-		log.Printf("GetNodeinfo failed: %s", err.Error())
-	} else {
-		zoneID = vm.ZoneID
-	}
-
 	sc, err := s.k8sClient.StorageV1().StorageClasses().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -135,7 +127,19 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 				Parameters: map[string]string{
 					driver.DiskOfferingKey: offering.Id,
 				},
-				AllowedTopologies: []corev1.TopologySelectorTerm{
+			}
+
+			//Add AllowedTopologies if the addAllowedTopology flag is true
+			if s.addAllowedTopology {
+				var zoneID string
+				vm, err := s.csConnector.GetNodeInfo(ctx, s.nodeName)
+				if err != nil {
+					log.Printf("GetNodeinfo failed: %s", err.Error())
+				} else {
+					zoneID = vm.ZoneID
+				}
+
+				allowedtopology := []corev1.TopologySelectorTerm{
 					{
 						MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
 							{
@@ -144,7 +148,8 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 							},
 						},
 					},
-				},
+				}
+				newSc.AllowedTopologies = allowedtopology
 			}
 
 			_, err = s.k8sClient.StorageV1().StorageClasses().Create(ctx, newSc, metav1.CreateOptions{})
