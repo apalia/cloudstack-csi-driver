@@ -12,6 +12,16 @@ func (c *client) GetVMByID(ctx context.Context, vmID string) (*VM, error) {
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "ListVirtualMachines", "params", map[string]string{
 		"id": vmID,
 	})
+
+	if c.projectID == "" {
+		//get projectid from metadata
+		c.projectID = c.metadataProjectID(ctx)
+	}
+
+	if c.projectID != "" {
+		p.SetProjectid(c.projectID)
+	}
+
 	l, err := c.VirtualMachine.ListVirtualMachines(p)
 	if err != nil {
 		return nil, err
@@ -35,6 +45,16 @@ func (c *client) getVMByName(ctx context.Context, name string) (*VM, error) {
 	ctxzap.Extract(ctx).Sugar().Infow("CloudStack API call", "command", "ListVirtualMachines", "params", map[string]string{
 		"name": name,
 	})
+
+	if c.projectID == "" {
+		//get projectid from metadata
+		c.projectID = c.metadataProjectID(ctx)
+	}
+
+	if c.projectID != "" {
+		p.SetProjectid(c.projectID)
+	}
+
 	l, err := c.VirtualMachine.ListVirtualMachines(p)
 	if err != nil {
 		return nil, err

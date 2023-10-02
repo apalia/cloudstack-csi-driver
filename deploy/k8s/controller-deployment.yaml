@@ -45,6 +45,8 @@ spec:
               mountPath: /var/lib/csi/sockets/pluginproxy/
             - name: cloudstack-conf
               mountPath: /etc/cloudstack-csi-driver
+            - name: cloud-init-dir
+              mountPath: /run/cloud-init/
 
         - name: external-provisioner
           image: k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4
@@ -79,3 +81,7 @@ spec:
         - name: cloudstack-conf
           secret:
             secretName: cloudstack-secret
+        - name: cloud-init-dir
+          hostPath:
+            path: /run/cloud-init/
+            type: Directory
