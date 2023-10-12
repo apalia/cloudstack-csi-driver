@@ -16,12 +16,14 @@ import (
 const agent = "cloudstack-csi-sc-syncer"
 
 var (
-	cloudstackconfig = flag.String("cloudstackconfig", "./cloud-config", "CloudStack configuration file")
-	kubeconfig       = flag.String("kubeconfig", path.Join(os.Getenv("HOME"), ".kube/config"), "Kubernetes configuration file. Use \"-\" to use in-cluster configuration.")
-	label            = flag.String("label", "app.kubernetes.io/managed-by="+agent, "")
-	namePrefix       = flag.String("namePrefix", "cloudstack-", "")
-	delete           = flag.Bool("delete", false, "Delete")
-	showVersion      = flag.Bool("version", false, "Show version")
+	cloudstackconfig   = flag.String("cloudstackconfig", "./cloud-config", "CloudStack configuration file")
+	kubeconfig         = flag.String("kubeconfig", path.Join(os.Getenv("HOME"), ".kube/config"), "Kubernetes configuration file. Use \"-\" to use in-cluster configuration.")
+	label              = flag.String("label", "app.kubernetes.io/managed-by="+agent, "")
+	nodeName           = flag.String("nodeName", "", "Node name")
+	addAllowedTopology = flag.Bool("addAllowedTopology", false, "Add allowed topology to storageclass")
+	namePrefix         = flag.String("namePrefix", "cloudstack-", "")
+	delete             = flag.Bool("delete", false, "Delete")
+	showVersion        = flag.Bool("version", false, "Show version")
 
 	// Version is set by the build process
 	version = ""
@@ -37,12 +39,14 @@ func main() {
 	}
 
 	s, err := syncer.New(syncer.Config{
-		Agent:            agent,
-		CloudStackConfig: *cloudstackconfig,
-		KubeConfig:       *kubeconfig,
-		Label:            *label,
-		NamePrefix:       *namePrefix,
-		Delete:           *delete,
+		Agent:              agent,
+		CloudStackConfig:   *cloudstackconfig,
+		KubeConfig:         *kubeconfig,
+		Label:              *label,
+		NodeName:           *nodeName,
+		AddAllowedTopology: *addAllowedTopology,
+		NamePrefix:         *namePrefix,
+		Delete:             *delete,
 	})
 	if err != nil {
 		log.Fatalf("Error: %v", err)

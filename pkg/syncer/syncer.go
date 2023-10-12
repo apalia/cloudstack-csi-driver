@@ -20,12 +20,14 @@ import (
 
 // Config holds the syncer tool configuration.
 type Config struct {
-	Agent            string
-	CloudStackConfig string
-	KubeConfig       string
-	Label            string
-	NamePrefix       string
-	Delete           bool
+	Agent              string
+	CloudStackConfig   string
+	KubeConfig         string
+	Label              string
+	NodeName           string
+	AddAllowedTopology bool
+	NamePrefix         string
+	Delete             bool
 }
 
 // Syncer has a function Run which synchronizes CloudStack
@@ -36,11 +38,14 @@ type Syncer interface {
 
 // syncer is Syncer implementation.
 type syncer struct {
-	k8sClient  *kubernetes.Clientset
-	csClient   *cloudstack.CloudStackClient
-	labelsSet  labels.Set
-	namePrefix string
-	delete     bool
+	k8sClient          *kubernetes.Clientset
+	csClient           *cloudstack.CloudStackClient
+	csConnector        cloud.Interface
+	nodeName           string
+	addAllowedTopology bool
+	labelsSet          labels.Set
+	namePrefix         string
+	delete             bool
 }
 
 func createK8sClient(kubeconfig, agent string) (*kubernetes.Clientset, error) {
@@ -70,6 +75,17 @@ func createCloudStackClient(cloudstackconfig string) (*cloudstack.CloudStackClie
 	return client, nil
 }
 
+func createCSConnector(cloudstackconfig string) (cloud.Interface, error) {
+	config, err := cloud.ReadConfig(cloudstackconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	csConnector := cloud.New(config)
+
+	return csConnector, nil
+}
+
 func createLabelsSet(label string) labels.Set {
 	m := make(map[string]string)
 	if len(label) > 0 {
@@ -95,11 +111,19 @@ func New(config Config) (Syncer, error) {
 		return nil, fmt.Errorf("cannot create CloudStack client: %w", err)
 	}
 
+	csConnector, err := createCSConnector(config.CloudStackConfig)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create CS connector interface: %w", err)
+	}
+
 	return syncer{
-		k8sClient:  k8sClient,
-		csClient:   csClient,
-		labelsSet:  createLabelsSet(config.Label),
-		namePrefix: config.NamePrefix,
-		delete:     config.Delete,
+		k8sClient:          k8sClient,
+		csClient:           csClient,
+		csConnector:        csConnector,
+		nodeName:           config.NodeName,
+		addAllowedTopology: config.AddAllowedTopology,
+		labelsSet:          createLabelsSet(config.Label),
+		namePrefix:         config.NamePrefix,
+		delete:             config.Delete,
 	}, nil
 }

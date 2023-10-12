@@ -20,6 +20,7 @@ var (
 	volBindingMode       = storagev1.VolumeBindingWaitForFirstConsumer
 	reclaimPolicy        = corev1.PersistentVolumeReclaimDelete
 	allowVolumeExpansion = false
+	zoneID               string
 )
 
 func (s syncer) Run(ctx context.Context) error {
@@ -91,6 +92,22 @@ func (s syncer) Run(ctx context.Context) error {
 	return combinedError(errs)
 }
 
+func getAllowedTopologies() []corev1.TopologySelectorTerm {
+	if zoneID != "" {
+		return []corev1.TopologySelectorTerm{
+			{
+				MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
+					{
+						Key:    "topology." + driver.DriverName + "/zone",
+						Values: []string{zoneID},
+					},
+				},
+			},
+		}
+	}
+	return nil
+}
+
 func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffering) (string, error) {
 	offeringName := offering.Name
 	custom := offering.Iscustomized
@@ -106,6 +123,8 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 		name = offering.Id
 	}
 	log.Printf("Storage class name: %s", name)
+
+	zoneID = s.getZoneID(ctx)
 
 	sc, err := s.k8sClient.StorageV1().StorageClasses().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -128,6 +147,14 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 					driver.DiskOfferingKey: offering.Id,
 				},
 			}
+
+			//Add AllowedTopologies if the addAllowedTopology flag is true
+			if s.addAllowedTopology {
+				if getAllowedTopologies() != nil {
+					newSc.AllowedTopologies = getAllowedTopologies()
+				}
+			}
+
 			_, err = s.k8sClient.StorageV1().StorageClasses().Create(ctx, newSc, metav1.CreateOptions{})
 			return name, err
 		}
@@ -136,7 +163,7 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 
 	// Storage class already exists
 
-	err = checkStorageClass(sc, offering.Id)
+	err = s.checkStorageClass(sc, offering.Id)
 	if err != nil {
 		// Updates to provisioner, reclaimpolicy, volumeBindingMode and parameters are forbidden
 		log.Printf("Storage class %s exists but it not compatible.", name)
@@ -159,7 +186,32 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 	return name, nil
 }
 
-func checkStorageClass(sc *storagev1.StorageClass, expectedOfferingID string) error {
+func getExistingZoneID(terms []corev1.TopologySelectorTerm) string {
+	prefix := "topology." + driver.DriverName + "/zone"
+	for _, term := range terms {
+		for _, exp := range term.MatchLabelExpressions {
+			if exp.Key == prefix {
+				if len(exp.Values) > 0 {
+					return exp.Values[0]
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// get ZoneID of the node where syncer is running
+func (s syncer) getZoneID(ctx context.Context) string {
+	vm, err := s.csConnector.GetNodeInfo(ctx, s.nodeName)
+	if err != nil {
+		log.Printf("GetNodeinfo failed: %s", err.Error())
+	} else {
+		return vm.ZoneID
+	}
+	return ""
+}
+
+func (s syncer) checkStorageClass(sc *storagev1.StorageClass, expectedOfferingID string) error {
 	errs := make([]error, 0)
 	diskOfferingID, ok := sc.Parameters[driver.DiskOfferingKey]
 	if !ok {
@@ -176,6 +228,15 @@ func checkStorageClass(sc *storagev1.StorageClass, expectedOfferingID string) er
 	}
 	if sc.AllowVolumeExpansion == nil || *sc.AllowVolumeExpansion != allowVolumeExpansion {
 		errs = append(errs, errors.New("wrong AllowVolumeExpansion"))
+	}
+	if s.addAllowedTopology {
+		if sc.AllowedTopologies == nil {
+			errs = append(errs, errors.New("allowedtopology flag is true but missing allowedtopologies"))
+		} else if sc.AllowedTopologies != nil {
+			if zoneID != getExistingZoneID(sc.AllowedTopologies) {
+				errs = append(errs, errors.New("allowedtopology flag is true but zoneID is not the same with desired zoneID: "+zoneID))
+			}
+		}
 	}
 
 	if len(errs) > 0 {
