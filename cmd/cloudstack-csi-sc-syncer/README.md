@@ -108,7 +108,7 @@ spec:
         - name: cloud-init-dir
           hostPath:
             path: /run/cloud-init/
-            type: DirectoryOrCreate
+            type: Directory
 E0F
 ```
 
