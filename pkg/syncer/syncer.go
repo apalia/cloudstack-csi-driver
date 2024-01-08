@@ -26,6 +26,7 @@ type Config struct {
 	Label            string
 	NamePrefix       string
 	Delete           bool
+	VolumeExpansion  bool
 }
 
 // Syncer has a function Run which synchronizes CloudStack
@@ -36,11 +37,12 @@ type Syncer interface {
 
 // syncer is Syncer implementation.
 type syncer struct {
-	k8sClient  *kubernetes.Clientset
-	csClient   *cloudstack.CloudStackClient
-	labelsSet  labels.Set
-	namePrefix string
-	delete     bool
+	k8sClient       *kubernetes.Clientset
+	csClient        *cloudstack.CloudStackClient
+	labelsSet       labels.Set
+	namePrefix      string
+	delete          bool
+	volumeExpansion bool
 }
 
 func createK8sClient(kubeconfig, agent string) (*kubernetes.Clientset, error) {
@@ -96,10 +98,11 @@ func New(config Config) (Syncer, error) {
 	}
 
 	return syncer{
-		k8sClient:  k8sClient,
-		csClient:   csClient,
-		labelsSet:  createLabelsSet(config.Label),
-		namePrefix: config.NamePrefix,
-		delete:     config.Delete,
+		k8sClient:       k8sClient,
+		csClient:        csClient,
+		labelsSet:       createLabelsSet(config.Label),
+		namePrefix:      config.NamePrefix,
+		delete:          config.Delete,
+		volumeExpansion: config.VolumeExpansion,
 	}, nil
 }

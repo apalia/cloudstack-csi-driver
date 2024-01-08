@@ -34,6 +34,7 @@ type Interface interface {
 	ExistsPath(filename string) (bool, error)
 	MakeDir(pathname string) error
 	MakeFile(pathname string) error
+	NewResizeFs(exec exec.Interface) *mount.ResizeFs
 }
 
 type mounter struct {
@@ -60,7 +61,7 @@ func (m *mounter) GetDevicePath(ctx context.Context, volumeID string) (string, e
 	}
 
 	var devicePath string
-	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (bool, error) {
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(context.Context) (bool, error) {
 		path, err := m.getDevicePathBySerialID(volumeID)
 		if err != nil {
 			return false, err
@@ -169,4 +170,8 @@ func (*mounter) MakeFile(pathname string) error {
 		return err
 	}
 	return nil
+}
+
+func (*mounter) NewResizeFs(exec exec.Interface) *mount.ResizeFs {
+	return mount.NewResizeFs(New())
 }

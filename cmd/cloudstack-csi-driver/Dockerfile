@@ -8,6 +8,7 @@ RUN apk add --no-cache \
     ca-certificates \
     # Provides mkfs.ext2, mkfs.ext3, mkfs.ext4 (used by k8s.io/mount-utils)
     e2fsprogs \
+    e2fsprogs-extra \
     # Provides mkfs.xfs
     xfsprogs \
     # Provides blkid, also used by k8s.io/mount-utils

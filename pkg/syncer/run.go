@@ -17,9 +17,8 @@ import (
 )
 
 var (
-	volBindingMode       = storagev1.VolumeBindingWaitForFirstConsumer
-	reclaimPolicy        = corev1.PersistentVolumeReclaimDelete
-	allowVolumeExpansion = false
+	volBindingMode = storagev1.VolumeBindingWaitForFirstConsumer
+	reclaimPolicy  = corev1.PersistentVolumeReclaimDelete
 )
 
 func (s syncer) Run(ctx context.Context) error {
@@ -85,6 +84,11 @@ func (s syncer) Run(ctx context.Context) error {
 		}
 	}
 
+	if s.volumeExpansion {
+		allowVolumeExpansion := s.volumeExpansion
+		log.Printf("Setting allowVolumeExpasion to %t...", allowVolumeExpansion)
+	}
+
 	if len(errs) == 0 {
 		return nil
 	}
@@ -123,7 +127,7 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 				Provisioner:          driver.DriverName,
 				VolumeBindingMode:    &volBindingMode,
 				ReclaimPolicy:        &reclaimPolicy,
-				AllowVolumeExpansion: &allowVolumeExpansion,
+				AllowVolumeExpansion: &s.volumeExpansion,
 				Parameters: map[string]string{
 					driver.DiskOfferingKey: offering.Id,
 				},
@@ -134,9 +138,20 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 		return "", err
 	}
 
+	// Check and update AllowVolumeExpansion if necessary
+	if sc.AllowVolumeExpansion == nil || *sc.AllowVolumeExpansion != s.volumeExpansion {
+		log.Printf("Updating AllowVolumeExpansion for storage class %s", sc.Name)
+		sc.AllowVolumeExpansion = &s.volumeExpansion
+
+		_, err = s.k8sClient.StorageV1().StorageClasses().Update(ctx, sc, metav1.UpdateOptions{})
+		if err != nil {
+			return "", fmt.Errorf("failed to update AllowVolumeExpansion for storage class %s: %w", sc.Name, err)
+		}
+	}
+
 	// Storage class already exists
 
-	err = checkStorageClass(sc, offering.Id)
+	err = checkStorageClass(sc, offering.Id, s.volumeExpansion)
 	if err != nil {
 		// Updates to provisioner, reclaimpolicy, volumeBindingMode and parameters are forbidden
 		log.Printf("Storage class %s exists but it not compatible.", name)
@@ -159,7 +174,7 @@ func (s syncer) syncOffering(ctx context.Context, offering *cloudstack.DiskOffer
 	return name, nil
 }
 
-func checkStorageClass(sc *storagev1.StorageClass, expectedOfferingID string) error {
+func checkStorageClass(sc *storagev1.StorageClass, expectedOfferingID string, expectedVolumeExpansion bool) error {
 	errs := make([]error, 0)
 	diskOfferingID, ok := sc.Parameters[driver.DiskOfferingKey]
 	if !ok {
@@ -174,8 +189,8 @@ func checkStorageClass(sc *storagev1.StorageClass, expectedOfferingID string) er
 	if sc.VolumeBindingMode == nil || *sc.VolumeBindingMode != volBindingMode {
 		errs = append(errs, errors.New("wrong VolumeBindingMode"))
 	}
-	if sc.AllowVolumeExpansion == nil || *sc.AllowVolumeExpansion != allowVolumeExpansion {
-		errs = append(errs, errors.New("wrong AllowVolumeExpansion"))
+	if sc.AllowVolumeExpansion == nil || *sc.AllowVolumeExpansion != expectedVolumeExpansion {
+		errs = append(errs, fmt.Errorf("wrong AllowVolumeExpansion for storage class %s", sc.Name))
 	}
 
 	if len(errs) > 0 {

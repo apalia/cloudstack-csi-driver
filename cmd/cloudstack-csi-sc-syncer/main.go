@@ -21,6 +21,7 @@ var (
 	label            = flag.String("label", "app.kubernetes.io/managed-by="+agent, "")
 	namePrefix       = flag.String("namePrefix", "cloudstack-", "")
 	delete           = flag.Bool("delete", false, "Delete")
+	volumeExpansion  = flag.Bool("volumeExpansion", false, "VolumeExpansion")
 	showVersion      = flag.Bool("version", false, "Show version")
 
 	// Version is set by the build process
@@ -43,6 +44,7 @@ func main() {
 		Label:            *label,
 		NamePrefix:       *namePrefix,
 		Delete:           *delete,
+		VolumeExpansion:  *volumeExpansion,
 	})
 	if err != nil {
 		log.Fatalf("Error: %v", err)

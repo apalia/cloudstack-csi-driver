@@ -101,3 +101,19 @@ func (f *fakeConnector) AttachVolume(ctx context.Context, volumeID, vmID string)
 }
 
 func (f *fakeConnector) DetachVolume(ctx context.Context, volumeID string) error { return nil }
+
+func (f *fakeConnector) ExpandVolume(ctx context.Context, volumeID string, newSizeInGB int64) error {
+	if vol, ok := f.volumesByID[volumeID]; ok {
+		newSizeInBytes := newSizeInGB * 1024 * 1024 * 1024
+		if newSizeInBytes > vol.Size {
+			vol.Size = newSizeInBytes
+			f.volumesByID[volumeID] = vol
+			f.volumesByName[vol.Name] = vol
+			return nil
+		} else {
+			return nil
+		}
+	} else {
+		return nil
+	}
+}
