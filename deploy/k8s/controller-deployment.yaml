@@ -47,7 +47,7 @@ spec:
               mountPath: /etc/cloudstack-csi-driver
 
         - name: external-provisioner
-          image: k8s.gcr.io/sig-storage/csi-provisioner:v2.0.4
+          image: k8s.gcr.io/sig-storage/csi-provisioner:v3.5.0
           imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
@@ -61,7 +61,7 @@ spec:
               mountPath: /var/lib/csi/sockets/pluginproxy/
 
         - name: external-attacher
-          image: k8s.gcr.io/sig-storage/csi-attacher:v3.0.2
+          image: k8s.gcr.io/sig-storage/csi-attacher:v4.3.0
           imagePullPolicy: IfNotPresent
           args:
             - "--csi-address=$(ADDRESS)"
@@ -69,6 +69,19 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+
+        - name: external-resizer
+          image: registry.k8s.io/sig-storage/csi-resizer:v1.9.2
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/

@@ -2,8 +2,7 @@
 //
 // To get usage information:
 //
-//    cloudstack-csi-driver -h
-//
+//	cloudstack-csi-driver -h
 package main
 
 import (

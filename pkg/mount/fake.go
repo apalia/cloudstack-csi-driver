@@ -51,3 +51,7 @@ func (*fakeMounter) MakeDir(pathname string) error {
 func (*fakeMounter) MakeFile(pathname string) error {
 	return nil
 }
+
+func (*fakeMounter) NewResizeFs(exec utilsexec.Interface) *mount.ResizeFs {
+	return mount.NewResizeFs(New())
+}

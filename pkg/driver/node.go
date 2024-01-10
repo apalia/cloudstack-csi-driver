@@ -325,6 +325,60 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
+func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+	volumePath := req.GetVolumePath()
+	if len(volumePath) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume path not provided")
+	}
+
+	ctxzap.Extract(ctx).Sugar().Infow("Node expand volume called",
+		"volume_id", volumeID,
+		"volume_path", volumePath,
+		"method", "node_expand_volume",
+	)
+	volCap := req.GetVolumeCapability()
+	if volCap != nil {
+		switch volCap.GetAccessType().(type) {
+		case *csi.VolumeCapability_Block:
+			ctxzap.Extract(ctx).Sugar().Info("filesystem expansion is skipped for block volumes")
+			return &csi.NodeExpandVolumeResponse{}, nil
+		}
+	}
+
+	_, err := ns.connector.GetVolumeByID(ctx, volumeID)
+	if err != nil {
+		if err == cloud.ErrNotFound {
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("Volume with ID %s not found", volumeID))
+		}
+		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeExpandVolume failed with error %v", err))
+	}
+
+	_, err = ns.mounter.GetMountRefs(volumePath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to find mount file system %s: %v", volumePath, err))
+	}
+
+	devicePath, err := ns.mounter.GetDevicePath(ctx, volumeID)
+	if devicePath == "" {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Unable to find Device path for volume %s: %v", volumeID, err))
+	}
+
+	ctxzap.Extract(ctx).Sugar().Infow("Device found",
+		"devicePath", devicePath,
+	)
+
+	r := ns.mounter.NewResizeFs(mount.New())
+	if _, err := r.Resize(devicePath, volumePath); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not resize volume %q:  %v", volumeID, err)
+	}
+	return &csi.NodeExpandVolumeResponse{}, nil
+}
+
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
@@ -332,6 +386,13 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 				Type: &csi.NodeServiceCapability_Rpc{
 					Rpc: &csi.NodeServiceCapability_RPC{
 						Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+					},
+				},
+			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
 					},
 				},
 			},
